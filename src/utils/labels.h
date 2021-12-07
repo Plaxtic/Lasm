@@ -6,6 +6,22 @@ struct label {
     struct label *next;
 };
 
+char *get_last_word(char *op) {
+    int len = strlen(op);
+    char *p = op;
+    
+    p += len;
+
+    while (*--p != ' ' && op < p);
+
+    return p > op ? p+1 : op;
+}
+
+bool is_jump(char*op) {
+    // TODO
+    return op[0] == 'j' || op[0] == 'J';
+}
+
 long long get_adr_by_name(struct label *head, char *name){
     if (head == NULL) 
         return -1;
@@ -15,6 +31,22 @@ long long get_adr_by_name(struct label *head, char *name){
 
     return get_adr_by_name(head->next, name);
 }
+
+int replace_label(struct label *head, char *op, unsigned long long rip) {
+    if (!is_jump(op))
+        return -1;
+
+    char *last_word = get_last_word(op);
+    size_t len = strlen(last_word);
+    long long adr = get_adr_by_name(head, last_word);
+    if (adr > 0) {
+        snprintf(last_word, MAXINSTRUCTIONSIZE-len, "%lld", adr-rip);
+        return 0;
+    }
+    return -1;
+}
+
+
 
 struct label *addlabel(struct label *prev, char *name, unsigned long long adr) {
     int len = strlen(name)-1;
@@ -49,7 +81,9 @@ bool is_label(char *name) {
         return false;
 
     for (int i = 0; i < len-1; i++)
-        if (!isalpha(name[i]) && !isdigit(name[i]))
+        if (!isalpha(name[i]) && 
+            !isdigit(name[i]) && 
+            name[i] != '_')
             return false;
 
     return true;

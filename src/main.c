@@ -5,48 +5,80 @@
 #include <sys/reg.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <ncurses.h>
 
 #include "utils/syscalls.h"
 #include "utils/history.h"
-#include "utils/windows.h"
+#include "../../testing/windows.h"
 #include "utils/labels.h"
+#include "utils/syntax.h"
 
-bool is_jump(char*op);
-char *get_last_word(char *op);
+#define USAGE "Usage: %s\n\
+\n\
+\t-o outfile\n\
+\t-s asm syntax\n"
+
+void print_usage(char*);
 pid_t run_trace(char*);
 uint8_t *assemble(const char *, size_t*, ks_engine*);
 
 int main(int argc, char *argv[]) {
 
-    // get options
-    bool is_output = false;
-    FILE *outfd;
-    if (argc > 1) {
-        int op;
+    // initialize assembler
+    ks_engine *ks;
+    if (ks_open(KS_ARCH_X86, KS_MODE_64, &ks) != KS_ERR_OK) 
+        return -1;
 
-        while ((op = getopt(argc, argv, "o:")) != -1) {
+    // get options
+    bool no_prelude = false;
+    FILE *outfd = NULL;
+    if (argc > 1) {
+
+        int op;
+        while ((op = getopt(argc, argv, "s:o:hp")) != -1) {
             switch (op) {
+
+                // suppress prelude
+                case 'p': 
+                    no_prelude = true;
+                    break;
 
                 // output file
                 case 'o':
                     outfd = fopen(optarg, "w");
-
                     if (outfd == NULL) {
                         perror("output");
                         return 1;
                     }
 
-                    is_output = true;
-                    fputs(ASMPRELUDE, outfd);
                     break;
 
+                // choose syntax
+                case 's':
+                    if (set_syntax(ks, optarg) < 0) {
+                        fprintf(stderr, "Unrecognized syntax '%s'\n", optarg);
+                        fprintf(stderr, "Supported syntax (-s) options:\n\n");
+                        print_syntax_options();
+                        return 1;
+                    }
+                    break;
+
+                // help
+                case 'h':
+                    print_usage(argv[0]);
+                    return 0;
+
                 default: 
-                    fprintf(stderr, "unrecognized option '%c'", op);
+                    print_usage(argv[0]);
                     return 1;
             }
         }
     }
+
+    // basic elf prelude 
+    if (outfd != NULL && !no_prelude)
+        fputs(ASMPRELUDE, outfd);
 
     // init ncurses
     initscr();
@@ -69,11 +101,6 @@ int main(int argc, char *argv[]) {
     // run program in child process and trace with parent
     pid_t child = run_trace("src/x86/nul");
 
-    // initialize assembler
-    ks_engine *ks;
-    if (ks_open(KS_ARCH_X86, KS_MODE_64, &ks) != KS_ERR_OK) 
-        return -1;
-
     // get status
     int status;
     wait(&status);
@@ -88,7 +115,10 @@ int main(int argc, char *argv[]) {
     struct label *tmpl, *labels;
     tmpl = labels = NULL;
 
-    struct user_regs_struct regs;
+    // make first try all match
+    struct user_regs_struct regsb, regsa;
+    ptrace(PTRACE_GETREGS, child, 0, &regsb);
+
     int addr_oset = 28;
     int y = 2;
     while (1) {
@@ -102,7 +132,7 @@ int main(int argc, char *argv[]) {
         }
 
         // get register state 
-        ptrace(PTRACE_GETREGS, child, 0, &regs);
+        ptrace(PTRACE_GETREGS, child, 0, &regsa);
 
         // stack headings
         mvwprintw(stack, 2, width/7, "rsp");
@@ -110,21 +140,24 @@ int main(int argc, char *argv[]) {
         mvwprintw(stack, 2, (width)-width/5, "hexdump");
 
         // print stack, pointer, and hex dump
-        print_stack(stack, child, regs.rsp, 2, 20, 19, 15);
+        print_stack(stack, child, regsa.rsp, 2, 20, 19, 15);
         wrefresh(stack);
 
         // update registers
         mvwprintw(registers, 1, 11, "REGISTERS");
-        print_regs(registers, 4, &regs);
+        print_regs(registers, 2, &regsb, &regsa);
         wrefresh(registers);
 
         // update flags 
         mvwprintw(registers, 1, width-20, "FLAGS");
-        print_flags(registers, width-31, &regs);
+        print_flags(registers, width-33, &regsb, &regsa);
         wrefresh(registers);
 
+        // save register state for comparison
+        ptrace(PTRACE_GETREGS, child, 0, &regsb);
+
         // print current address (rip) 
-        mvwprintw(instructions, y, addr_oset, "[%#08llx]> ", regs.rip);
+        mvwprintw(instructions, y, addr_oset, "[%#08llx]> ", regsa.rip);
         wrefresh(instructions);
 
         // get instruction
@@ -163,15 +196,7 @@ int main(int argc, char *argv[]) {
         else {
             // if last operand is a label, replace with address
             // ---------- ONLY WORKING FOR JUMPS -------------
-            // ------- (maybe only should) ---------
-            if (is_jump(curr->instruction)) {
-                long long adr;
-                char *lastword = get_last_word(curr->instruction);
-
-                adr = get_adr_by_name(labels, lastword);
-                if (adr > 0)
-                    snprintf(lastword, MAXINSTRUCTIONSIZE, "%lld", adr-regs.rip);
-            }
+            replace_label(labels, curr->instruction, regsa.rip);
 
             // try assemble buffer
             size_t nbytes;
@@ -187,7 +212,7 @@ int main(int argc, char *argv[]) {
                 y++;
 
                 // inject raw assembled bytes to instruction pointer (rip)
-                puttdata(child, regs.rip, bytes, nbytes);
+                puttdata(child, regsa.rip, bytes, nbytes);
 
                 // set process to break on step
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
@@ -199,7 +224,7 @@ int main(int argc, char *argv[]) {
                 wait(&status);
 
                 // save to file
-                if (is_output) 
+                if (outfd != NULL) 
                     fprintf(outfd, "\t%s\n", curr->instruction);
             }
             else {
@@ -209,7 +234,7 @@ int main(int argc, char *argv[]) {
                     wmove(instructions, y, 2);
                     clear_line(instructions);
 
-                    tmpl = addlabel(labels, curr->instruction, regs.rip);
+                    tmpl = addlabel(labels, curr->instruction, regsa.rip);
                     if (tmpl == NULL) {
                         mvwprintw(instructions, y, 2, "Bad Label!");
                     }
@@ -238,7 +263,15 @@ int main(int argc, char *argv[]) {
         }
         curr = add_to_history(curr);
     }
+    delwin(instructions);
+    delwin(stack);
+    delwin(registers);
+    endwin();
     return 0;
+}
+
+void print_usage(char *argv0) {
+    fprintf(stderr, USAGE, argv0);
 }
 
 pid_t run_trace(char *filename) {
@@ -263,18 +296,4 @@ uint8_t *assemble(const char *code, size_t *nbytes, ks_engine *ks ) {
     return encode;
 }
 
-char *get_last_word(char *op) {
-    int len = strlen(op);
-    char *p = op;
-    
-    p += len;
 
-    while (*--p != ' ' && op < p);
-
-    return p > op ? p+1 : op;
-}
- 
-bool is_jump(char*op) {
-    // TODO
-    return op[0] == 'j' || op[0] == 'J';
-}

@@ -1,2 +1,2 @@
 live:
-	gcc -o live src/live.c -lkeystone -lncurses
+	gcc -Wall -o live src/main.c -lkeystone -lncurses
