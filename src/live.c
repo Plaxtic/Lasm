@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     keypad(instructions, TRUE);
 
     // run program in child process and trace with parent
-    pid_t child = run_trace("x86/nul");
+    pid_t child = run_trace("src/x86/nul");
 
     // initialize assembler
     ks_engine *ks;
