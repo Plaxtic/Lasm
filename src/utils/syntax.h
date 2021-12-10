@@ -16,17 +16,19 @@ void print_syntax_options() {
         fprintf(stderr, "\t%s\n", syntax_table[i].name);
 }
 
-int set_syntax(ks_engine *ks, char *option) {
-    int i = 0;
+int get_syntax(char *option) {
 
-    for (;; ++i) {
+    for (int i = 0;; ++i) {
         if (syntax_table[i].name == NULL)
             return -1;
         if (!strcmp(syntax_table[i].name, option))
-            break;
+            return syntax_table[i].code;
     }
+}
 
-    if (ks_option(ks, KS_OPT_SYNTAX, syntax_table[i].code) != KS_ERR_OK)
+
+int set_syntax(ks_engine *ks, int code) {
+    if (ks_option(ks, KS_OPT_SYNTAX, code) != KS_ERR_OK)
         return -1;
 
     return 0;

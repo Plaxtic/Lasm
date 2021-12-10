@@ -2,77 +2,114 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/user.h>
-#include <sys/reg.h>
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <ncurses.h>
 
+#define ARCH KS_ARCH_X86
+
 #include "utils/syscalls.h"
 #include "utils/history.h"
-#include "../../testing/windows.h"
+#include "utils/windows.h"
 #include "utils/labels.h"
 #include "utils/syntax.h"
 
+
 #define USAGE "Usage: %s\n\
 \n\
-\t-o outfile\n\
-\t-s asm syntax\n"
+\t-o <outfile>\n\
+\t-s <asm syntax>\n\n"
+
 
 void print_usage(char*);
 pid_t run_trace(char*);
 uint8_t *assemble(const char *, size_t*, ks_engine*);
+int get_regs(pid_t child, struct user_regs_struct *regs);
 
 int main(int argc, char *argv[]) {
+    char filename[6] = "nul";
+
+    // get options
+    int bits = KS_MODE_64;
+    int syntax = -1;
+    bool no_prelude = false;
+    FILE *outfd = NULL;
+    int op;
+    while ((op = getopt(argc, argv, "b:s:o:hp")) != -1) {
+        switch (op) {
+
+            // suppress prelude
+            case 'p': 
+                no_prelude = true;
+                break;
+
+            // output file
+            case 'o':
+                outfd = fopen(optarg, "w");
+
+                if (outfd == NULL) {
+                    perror("output");
+                    return 1;
+                }
+                break;
+
+            // choose syntax
+            case 's':
+                syntax = get_syntax(optarg);
+                if (syntax < 0) {
+                    fprintf(stderr, "Unrecognized syntax '%s'\n", optarg);
+                    fprintf(stderr, "Supported syntax (-s) options:\n\n");
+                    print_syntax_options();
+                    return 1;
+                }
+                break;
+
+            // choose bits
+            case 'b':
+                if (strcmp(optarg, "32") == 0) {
+                    printf("\n\t32 bit is not ready!!\n");
+                    printf("\n\t(use anyway? [y/N])\n");
+
+                    if (getchar() != 'y')
+                        return 0;
+
+                    bits = KS_MODE_32; 
+                    strcat(filename, "32");
+                    filename[5] = 0;
+
+                }
+                else if (strcmp(optarg, "64") != 0)  {
+                    fprintf(stderr, "Unsupported bits '%s'\n", optarg);
+                    return 1;
+                }
+                break;
+
+
+            // help
+            case 'h':
+                print_usage(argv[0]);
+                return 0;
+
+            // bad option
+            default: 
+                print_usage(argv[0]);
+                return 1;
+        }
+    }
 
     // initialize assembler
     ks_engine *ks;
-    if (ks_open(KS_ARCH_X86, KS_MODE_64, &ks) != KS_ERR_OK) 
-        return -1;
+    if (ks_open(ARCH, bits, &ks) != KS_ERR_OK) {
+        perror("ks_open");
+        return 1;
+    }
 
-    // get options
-    bool no_prelude = false;
-    FILE *outfd = NULL;
-    if (argc > 1) {
-
-        int op;
-        while ((op = getopt(argc, argv, "s:o:hp")) != -1) {
-            switch (op) {
-
-                // suppress prelude
-                case 'p': 
-                    no_prelude = true;
-                    break;
-
-                // output file
-                case 'o':
-                    outfd = fopen(optarg, "w");
-                    if (outfd == NULL) {
-                        perror("output");
-                        return 1;
-                    }
-
-                    break;
-
-                // choose syntax
-                case 's':
-                    if (set_syntax(ks, optarg) < 0) {
-                        fprintf(stderr, "Unrecognized syntax '%s'\n", optarg);
-                        fprintf(stderr, "Supported syntax (-s) options:\n\n");
-                        print_syntax_options();
-                        return 1;
-                    }
-                    break;
-
-                // help
-                case 'h':
-                    print_usage(argv[0]);
-                    return 0;
-
-                default: 
-                    print_usage(argv[0]);
-                    return 1;
-            }
+    // set syntax
+    if (syntax != -1) {
+        if (set_syntax(ks, syntax) < 0) {
+            perror("set_syntax");
+            return 1;
         }
     }
 
@@ -99,7 +136,7 @@ int main(int argc, char *argv[]) {
     keypad(instructions, TRUE);
 
     // run program in child process and trace with parent
-    pid_t child = run_trace("src/x86/nul");
+    pid_t child = run_trace(filename);
 
     // get status
     int status;
@@ -117,10 +154,13 @@ int main(int argc, char *argv[]) {
 
     // make first try all match
     struct user_regs_struct regsb, regsa;
-    ptrace(PTRACE_GETREGS, child, 0, &regsb);
+    get_regs(child, &regsb);
 
     int addr_oset = 28;
     int y = 2;
+    long long stack_pointer;
+    long long inst_pointer;
+    int ret = 0;
     while (1) {
 
         // clear and jump to top if at bottom
@@ -132,7 +172,9 @@ int main(int argc, char *argv[]) {
         }
 
         // get register state 
-        ptrace(PTRACE_GETREGS, child, 0, &regsa);
+        get_regs(child, &regsa);
+        stack_pointer = regsa.rsp;
+        inst_pointer = regsa.rip;
 
         // stack headings
         mvwprintw(stack, 2, width/7, "rsp");
@@ -140,7 +182,7 @@ int main(int argc, char *argv[]) {
         mvwprintw(stack, 2, (width)-width/5, "hexdump");
 
         // print stack, pointer, and hex dump
-        print_stack(stack, child, regsa.rsp, 2, 20, 19, 15);
+        print_stack(stack, child, stack_pointer, 2, 20, 19, 15);
         wrefresh(stack);
 
         // update registers
@@ -154,14 +196,14 @@ int main(int argc, char *argv[]) {
         wrefresh(registers);
 
         // save register state for comparison
-        ptrace(PTRACE_GETREGS, child, 0, &regsb);
+        get_regs(child, &regsb);
 
         // print current address (rip) 
-        mvwprintw(instructions, y, addr_oset, "[%#08llx]> ", regsa.rip);
+        mvwprintw(instructions, y, addr_oset, "[%#010llx]> ", inst_pointer);
         wrefresh(instructions);
 
         // get instruction
-        curr = get_instruction(instructions, curr, 40, y);
+        curr = get_instruction(instructions, curr, 42, y);
 
         // skip enter or deleted line
         if (!curr->instruction[0]) continue;
@@ -185,7 +227,8 @@ int main(int argc, char *argv[]) {
             for (i = 0; i < nsteps; ++i) {
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
-                    return 1;
+                    ret = 1;
+                    goto end;
                 }
                 wait(&status);
             }
@@ -196,7 +239,7 @@ int main(int argc, char *argv[]) {
         else {
             // if last operand is a label, replace with address
             // ---------- ONLY WORKING FOR JUMPS -------------
-            replace_label(labels, curr->instruction, regsa.rip);
+            replace_label(labels, curr->instruction, inst_pointer);
 
             // try assemble buffer
             size_t nbytes;
@@ -212,12 +255,13 @@ int main(int argc, char *argv[]) {
                 y++;
 
                 // inject raw assembled bytes to instruction pointer (rip)
-                puttdata(child, regsa.rip, bytes, nbytes);
+                puttdata(child, inst_pointer, bytes, nbytes);
 
                 // set process to break on step
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
-                    return 1;
+                    ret = 1;
+                    break;
                 }
 
                 // try execute bytes
@@ -234,7 +278,7 @@ int main(int argc, char *argv[]) {
                     wmove(instructions, y, 2);
                     clear_line(instructions);
 
-                    tmpl = addlabel(labels, curr->instruction, regsa.rip);
+                    tmpl = addlabel(labels, curr->instruction, inst_pointer);
                     if (tmpl == NULL) {
                         mvwprintw(instructions, y, 2, "Bad Label!");
                     }
@@ -263,12 +307,20 @@ int main(int argc, char *argv[]) {
         }
         curr = add_to_history(curr);
     }
+
+end:
+    ks_close(ks);
     delwin(instructions);
     delwin(stack);
     delwin(registers);
     endwin();
-    return 0;
+    return ret;
 }
+
+int get_regs(pid_t child, struct user_regs_struct *regs) {
+    return ptrace(PTRACE_GETREGS, child, 0, regs);
+}
+
 
 void print_usage(char *argv0) {
     fprintf(stderr, USAGE, argv0);

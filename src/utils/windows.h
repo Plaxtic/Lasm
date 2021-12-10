@@ -21,8 +21,8 @@
 
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void clear_line(WINDOW *w);
-void print_regs(WINDOW *w, int pos, struct user_regs_struct *regs);
-void print_flags(WINDOW *w, int pos, struct user_regs_struct *regs);
+void print_regs(WINDOW*, int, struct user_regs_struct*,  struct user_regs_struct*);
+void print_flags(WINDOW*, int, struct user_regs_struct *, struct user_regs_struct*);
 void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int stckln, int hdln, int lines);
 struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y);
 
@@ -73,10 +73,13 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
 
             case UP:
                 if (curr->prev != NULL) {
+
+                    // move back in history
                     curr = curr->prev;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
 
+                    // reset len and cursor
                     len = strlen(curr->instruction);
                     cursor = len + x;
                 }
@@ -84,10 +87,13 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
 
             case DOWN:
                 if (curr->next != NULL) {
+
+                    // move forward in history
                     curr = curr->next;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
 
+                    // reset len and cursor
                     len = strlen(curr->instruction);
                     cursor = len + x;
                 }
@@ -95,7 +101,11 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
 
             default:
                 if (cursor < MAINWINWIDTH-2 && cursor < MAXINSTRUCTIONSIZE+x) {
+
+                    // save char
                     curr->instruction[len++] = ch;
+
+                    // echo
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     cursor++;
                 }
@@ -150,56 +160,59 @@ void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int
 }
 
 
-void print_flags(WINDOW *w, int pos, struct user_regs_struct *regs){
-    long long eflags = regs->eflags;
+void print_flags(WINDOW *w, int pos, struct user_regs_struct *regsb, 
+                                     struct user_regs_struct *regsa){
+    long long eflagsa = regsa->eflags;
+    long long eflagsb = regsb->eflags;
 
-    mvwprintw(w, 2,  pos, "cs:      0x%016llx", regs->cs);
-    mvwprintw(w, 3,  pos, "ss:      0x%016llx", regs->ss);
-    mvwprintw(w, 4,  pos, "ds:      0x%016llx", regs->ds);
-    mvwprintw(w, 5,  pos, "es:      0x%016llx", regs->es);
-    mvwprintw(w, 6,  pos, "fs:      0x%016llx", regs->fs);
-    mvwprintw(w, 7,  pos, "gs:      0x%016llx", regs->gs);
-    mvwprintw(w, 8,  pos, "fs_base: 0x%016llx", regs->fs_base);
-    mvwprintw(w, 9,  pos, "gs_base: 0x%016llx", regs->gs_base);
-    mvwprintw(w, 10,  pos, "eflags:  0x%016llx", regs->eflags);
-    mvwprintw(w, 12,  pos, "CF : %d", !!(eflags & CF));
-    mvwprintw(w, 13,  pos, "PF : %d", !!(eflags & PF));
-    mvwprintw(w, 14,  pos, "AF : %d", !!(eflags & AF));
-    mvwprintw(w, 15,  pos, "ZF : %d", !!(eflags & ZF));
-    mvwprintw(w, 16,  pos, "SF : %d", !!(eflags & SF));
-    mvwprintw(w, 16,  pos, "TF : %d", !!(eflags & TF));
-    mvwprintw(w, 17,  pos, "IF : %d", !!(eflags & IF));
-    mvwprintw(w, 18,  pos, "DF : %d", !!(eflags & DF));
-    mvwprintw(w, 12,  pos+9, "OF   : %d", !!(eflags & OF));
-    mvwprintw(w, 13,  pos+9, "IOPL : %d", !!(eflags & IOPL));
-    mvwprintw(w, 14,  pos+9, "NT   : %d", !!(eflags & NT));
-    mvwprintw(w, 15,  pos+9, "RF   : %d", !!(eflags & RF));
-    mvwprintw(w, 16,  pos+9, "VM   : %d", !!(eflags & VM));
-    mvwprintw(w, 17,  pos+9, "AC   : %d", !!(eflags & AC));
-    mvwprintw(w, 18,  pos+9, "VIF  : %d", !!(eflags & VIF));
-    mvwprintw(w, 12,  pos+19, "VIP : %d", !!(eflags & VIP));
-    mvwprintw(w, 13,  pos+19, "ID  : %d", !!(eflags & ID));
+    mvwprintw(w, 2,  pos, "%c cs:      0x%016llx", regsa->cs == regsb->cs ? ' ' : '*', regsa->cs);
+    mvwprintw(w, 3,  pos, "%c ss:      0x%016llx", regsa->ss == regsb->ss ? ' ' : '*', regsa->ss);
+    mvwprintw(w, 4,  pos, "%c ds:      0x%016llx", regsa->ds == regsb->ds ? ' ' : '*', regsa->ds);
+    mvwprintw(w, 5,  pos, "%c es:      0x%016llx", regsa->es == regsb->es ? ' ' : '*', regsa->es);
+    mvwprintw(w, 6,  pos, "%c fs:      0x%016llx", regsa->fs == regsb->fs ? ' ' : '*', regsa->fs);
+    mvwprintw(w, 7,  pos, "%c gs:      0x%016llx", regsa->gs == regsb->gs ? ' ' : '*', regsa->gs);
+    mvwprintw(w, 8,  pos, "%c fs_base: 0x%016llx", regsa->fs_base == regsb->fs_base ? ' ' : '*', regsa->fs_base);
+    mvwprintw(w, 9,  pos, "%c gs_base: 0x%016llx", regsa->gs_base == regsb->gs_base ? ' ' : '*', regsa->gs_base);
+    mvwprintw(w, 10,  pos,"%c eflags:  0x%016llx", eflagsa == eflagsb ? ' ' : '*', eflagsa);
+    mvwprintw(w, 12,  pos,   "%c CF : %d", (eflagsa & CF) == (eflagsb & CF) ? ' ' : '*', !!(eflagsa & CF));
+    mvwprintw(w, 13,  pos,   "%c PF : %d", (eflagsa & PF) == (eflagsb & PF) ? ' ' : '*', !!(eflagsa & PF));
+    mvwprintw(w, 14,  pos,   "%c AF : %d", (eflagsa & AF) == (eflagsb & AF) ? ' ' : '*', !!(eflagsa & AF));
+    mvwprintw(w, 15,  pos,   "%c ZF : %d", (eflagsa & ZF) == (eflagsb & ZF) ? ' ' : '*', !!(eflagsa & ZF));
+    mvwprintw(w, 16,  pos,   "%c SF : %d", (eflagsa & SF) == (eflagsb & SF) ? ' ' : '*', !!(eflagsa & SF));
+    mvwprintw(w, 16,  pos,   "%c TF : %d", (eflagsa & TF) == (eflagsb & TF) ? ' ' : '*', !!(eflagsa & TF));
+    mvwprintw(w, 17,  pos,   "%c IF : %d", (eflagsa & IF) == (eflagsb & IF) ? ' ' : '*', !!(eflagsa & IF));
+    mvwprintw(w, 18,  pos,   "%c DF : %d", (eflagsa & DF) == (eflagsb & DF) ? ' ' : '*', !!(eflagsa & DF));
+    mvwprintw(w, 12,  pos+9, "%c OF   : %d", (eflagsa & OF) == (eflagsb & OF) ? ' ' : '*', !!(eflagsa & OF));
+    mvwprintw(w, 13,  pos+9, "%c IOPL : %d", (eflagsa & IOPL) == (eflagsb & IOPL) ? ' ' : '*', !!(eflagsa & IOPL));
+    mvwprintw(w, 14,  pos+9, "%c NT   : %d", (eflagsa & NT) == (eflagsb & NT) ? ' ' : '*', !!(eflagsa & NT));
+    mvwprintw(w, 15,  pos+9, "%c RF   : %d", (eflagsa & RF) == (eflagsb & RF) ? ' ' : '*', !!(eflagsa & RF));
+    mvwprintw(w, 16,  pos+9, "%c VM   : %d", (eflagsa & VM) == (eflagsb & VM) ? ' ' : '*', !!(eflagsa & VM));
+    mvwprintw(w, 17,  pos+9, "%c AC   : %d", (eflagsa & AC) == (eflagsb & AC) ? ' ' : '*', !!(eflagsa & AC));
+    mvwprintw(w, 18,  pos+9, "%c VIF  : %d", (eflagsa & VIF) == (eflagsb & VIF) ? ' ' : '*', !!(eflagsa & VIF));
+    mvwprintw(w, 12,  pos+19,"%c VIP : %d", (eflagsa & VIP) == (eflagsb & VIP) ? ' ' : '*', !!(eflagsa & VIP));
+    mvwprintw(w, 13,  pos+19,"%c ID  : %d", (eflagsa &  ID) == (eflagsb &  ID) ? ' ' : '*', !!(eflagsa & ID) );
 }
 
 
-void print_regs(WINDOW *w, int pos, struct user_regs_struct *regs) {
-    mvwprintw(w, 2,  pos, "rax: 0x%016llx", regs->rax);
-    mvwprintw(w, 3,  pos, "rbx: 0x%016llx", regs->rbx);
-    mvwprintw(w, 4,  pos, "rcx: 0x%016llx", regs->rcx);
-    mvwprintw(w, 5,  pos, "rdx: 0x%016llx", regs->rdx);
-    mvwprintw(w, 6,  pos, "rdi: 0x%016llx", regs->rdi);
-    mvwprintw(w, 7,  pos, "rsi: 0x%016llx", regs->rsi);
-    mvwprintw(w, 8,  pos, "rip: 0x%016llx", regs->rip);
-    mvwprintw(w, 9,  pos, "rsp: 0x%016llx", regs->rsp);
-    mvwprintw(w, 10, pos, "rbp: 0x%016llx", regs->rbp);
-    mvwprintw(w, 11, pos, "r8:  0x%016llx", regs->r8);
-    mvwprintw(w, 12, pos, "r9:  0x%016llx", regs->r9);
-    mvwprintw(w, 13, pos, "r10: 0x%016llx", regs->r10);
-    mvwprintw(w, 14, pos, "r11: 0x%016llx", regs->r11);
-    mvwprintw(w, 15, pos, "r12: 0x%016llx", regs->r12);
-    mvwprintw(w, 16, pos, "r13: 0x%016llx", regs->r13);
-    mvwprintw(w, 17, pos, "r14: 0x%016llx", regs->r14);
-    mvwprintw(w, 18, pos, "r15: 0x%016llx", regs->r15);
+void print_regs(WINDOW *w, int pos, struct user_regs_struct *regsb, 
+                                    struct user_regs_struct *regsa) {
+    mvwprintw(w, 2,  pos, "%c rax: 0x%016llx", regsb->rax == regsa->rax ? ' ' : '*', regsa->rax);
+    mvwprintw(w, 3,  pos, "%c rbx: 0x%016llx", regsb->rbx == regsa->rbx ? ' ' : '*', regsa->rbx);
+    mvwprintw(w, 4,  pos, "%c rcx: 0x%016llx", regsb->rcx == regsa->rcx ? ' ' : '*', regsa->rcx);
+    mvwprintw(w, 5,  pos, "%c rdx: 0x%016llx", regsb->rdx == regsa->rdx ? ' ' : '*', regsa->rdx);
+    mvwprintw(w, 6,  pos, "%c rdi: 0x%016llx", regsb->rdi == regsa->rdi ? ' ' : '*', regsa->rdi);
+    mvwprintw(w, 7,  pos, "%c rsi: 0x%016llx", regsb->rsi == regsa->rdi ? ' ' : '*', regsa->rsi);
+    mvwprintw(w, 8,  pos, "%c rip: 0x%016llx", regsb->rip == regsa->rip ? ' ' : '*', regsa->rip);
+    mvwprintw(w, 9,  pos, "%c rsp: 0x%016llx", regsb->rsp == regsa->rsp ? ' ' : '*', regsa->rsp);
+    mvwprintw(w, 10, pos, "%c rbp: 0x%016llx", regsb->rbp == regsa->rbp ? ' ' : '*', regsa->rbp);
+    mvwprintw(w, 11, pos, "%c r8:  0x%016llx", regsb->r8 == regsa->r8   ? ' ' : '*', regsa->r8 );
+    mvwprintw(w, 12, pos, "%c r9:  0x%016llx", regsb->r9 == regsa->r9   ? ' ' : '*', regsa->r9 );
+    mvwprintw(w, 13, pos, "%c r10: 0x%016llx", regsb->r10 == regsa->r10 ? ' ' : '*', regsa->r10);
+    mvwprintw(w, 14, pos, "%c r11: 0x%016llx", regsb->r11 == regsa->r11 ? ' ' : '*', regsa->r11);
+    mvwprintw(w, 15, pos, "%c r12: 0x%016llx", regsb->r12 == regsa->r12 ? ' ' : '*', regsa->r12);
+    mvwprintw(w, 16, pos, "%c r13: 0x%016llx", regsb->r13 == regsa->r13 ? ' ' : '*', regsa->r13);
+    mvwprintw(w, 17, pos, "%c r14: 0x%016llx", regsb->r14 == regsa->r14 ? ' ' : '*', regsa->r14);
+    mvwprintw(w, 18, pos, "%c r15: 0x%016llx", regsb->r15 == regsa->r15 ? ' ' : '*', regsa->r15);
 }
 
 
