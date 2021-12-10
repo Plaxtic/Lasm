@@ -19,7 +19,8 @@
 #define USAGE "Usage: %s\n\
 \n\
 \t-o <outfile>\n\
-\t-s <asm syntax>\n\n"
+\t-s <asm syntax>\n\
+\t-b <bits>\n\n"
 
 
 void print_usage(char*);
@@ -85,7 +86,6 @@ int main(int argc, char *argv[]) {
                 }
                 break;
 
-
             // help
             case 'h':
                 print_usage(argv[0]);
@@ -141,6 +141,10 @@ int main(int argc, char *argv[]) {
     // get status
     int status;
     wait(&status);
+    if (WIFEXITED(status)) {
+        puts("Failed to run subprocess");
+        return 1;
+    }
 
     // load blank instruction
     struct history *tmp, *curr;
@@ -228,10 +232,11 @@ int main(int argc, char *argv[]) {
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
                     ret = 1;
-                    goto end;
+                    break;
                 }
                 wait(&status);
             }
+            if (ret) break;
             wmove(instructions, y, 40);
             clear_line(instructions);
         }
@@ -308,7 +313,6 @@ int main(int argc, char *argv[]) {
         curr = add_to_history(curr);
     }
 
-end:
     ks_close(ks);
     delwin(instructions);
     delwin(stack);
@@ -320,7 +324,6 @@ end:
 int get_regs(pid_t child, struct user_regs_struct *regs) {
     return ptrace(PTRACE_GETREGS, child, 0, regs);
 }
-
 
 void print_usage(char *argv0) {
     fprintf(stderr, USAGE, argv0);
