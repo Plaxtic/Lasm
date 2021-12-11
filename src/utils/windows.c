@@ -31,7 +31,7 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
     int len = 0;
     int cursor = x;
 
-    char ch;
+    int ch;
     while ((ch = mvwgetch(w, y, cursor)) != '\n') {
         switch (ch) {
 
@@ -48,15 +48,40 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                 }
                 break;
 
-            case RIGHT:
+            case CTL_BACKSPACE:
+                if (curr->instruction[len-1] == ' ') {
+                    while (cursor > x && curr->instruction[len-1] == ' ') {
+                        curr->instruction[len--] = 0;
+                        cursor--;
+                        mvwprintw(w, y, x, "%s", curr->instruction);
+                        wmove(w, y, cursor);
+                        clear_line(w);
+
+                    }
+                }
+                else {
+                    while (cursor > x && curr->instruction[len-1] != ' ') {
+                        curr->instruction[len--] = 0;
+                        cursor--;
+                        mvwprintw(w, y, x, "%s", curr->instruction);
+                        wmove(w, y, cursor);
+                        clear_line(w);
+                    }
+                }
+                break;
+
+            case KEY_RIGHT:
                 // TODO
                 break;
 
-            case LEFT:
+            case CTL_C:
+                return NULL;
+
+            case KEY_LEFT:
                 // TODO
                 break;
 
-            case UP:
+            case KEY_UP:
                 if (curr->prev != NULL) {
 
                     // move back in history
@@ -70,7 +95,7 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                 }
                 break;
 
-            case DOWN:
+            case KEY_DOWN:
                 if (curr->next != NULL) {
 
                     // move forward in history

@@ -1,0 +1,4 @@
+0:mov rax, rax
+0:inc rcx
+0:mov rax, 5
+0:mov rcx, 7

@@ -116,9 +116,38 @@ int main(int argc, char *argv[]) {
     if (outfd != NULL && !no_prelude)
         fputs(ASMPRELUDE, outfd);
 
+    // run program in child process and trace with parent
+    pid_t child = run_trace(filename);
+
+    // get status
+    int status;
+    wait(&status);
+    if (WIFEXITED(status)) {
+        puts("Failed to run subprocess");
+        return 1;
+    }
+
+    // load history log
+    FILE *log = fopen(".history", "r+");
+    if (log == NULL) {
+        perror("fopen");
+        return EXIT_FAILURE;
+    }
+    struct history *tmp, *curr;
+    tmp = curr = load_history(log);
+    fseek(log, 0, SEEK_END);
+
+    // initalise label list
+    struct label *tmpl, *labels;
+    tmpl = labels = NULL;
+
+    // make first try all match
+    struct user_regs_struct regsb, regsa;
+    get_regs(child, &regsb);
+
     // init ncurses
     initscr();
-    cbreak();
+    raw();
     noecho();
     keypad(stdscr, TRUE);
 
@@ -133,31 +162,6 @@ int main(int argc, char *argv[]) {
     WINDOW *stack = create_newwin(height, width, 0, startx);
     WINDOW *instructions = create_newwin(LINES, MAINWINWIDTH, 0, 0);
     keypad(instructions, TRUE);
-
-    // run program in child process and trace with parent
-    pid_t child = run_trace(filename);
-
-    // get status
-    int status;
-    wait(&status);
-    if (WIFEXITED(status)) {
-        puts("Failed to run subprocess");
-        return 1;
-    }
-
-    // load blank instruction
-    struct history *tmp, *curr;
-    tmp = curr = malloc(sizeof(struct history));
-    memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
-    curr->next = curr->prev  = NULL;
-
-    // initalise label list
-    struct label *tmpl, *labels;
-    tmpl = labels = NULL;
-
-    // make first try all match
-    struct user_regs_struct regsb, regsa;
-    get_regs(child, &regsb);
 
     int addr_oset = 28;
     int y = 2;
@@ -207,6 +211,7 @@ int main(int argc, char *argv[]) {
 
         // get instruction
         curr = get_instruction(instructions, curr, 42, y);
+        if (curr == NULL) break;
 
         // skip enter or deleted line
         if (!curr->instruction[0]) continue;
@@ -275,6 +280,8 @@ int main(int argc, char *argv[]) {
                 // save to file
                 if (outfd != NULL) 
                     fprintf(outfd, "\t%s\n", curr->instruction);
+
+                fprintf(log, "%llu:%s\n", curr->adr, curr->instruction);
             }
             else {
 

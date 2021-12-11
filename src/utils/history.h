@@ -1,9 +1,4 @@
 #define MAXINSTRUCTIONSIZE 50 
-#define RIGHT 5
-#define LEFT 4
-#define UP 3
-#define DOWN 2
-#define BACKSPACE 127 
 
 // eflags
 #define CF 0x0001 	
@@ -43,4 +38,5 @@ struct history {
 struct history *add_to_history(struct history*);
 struct history *find_head(struct history*);
 struct history *find_by_adr(unsigned long long, struct history*);
+struct history *load_history(FILE*);
 
