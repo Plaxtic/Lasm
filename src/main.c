@@ -78,7 +78,6 @@ int main(int argc, char *argv[]) {
                     bits = KS_MODE_32; 
                     strcat(filename, "32");
                     filename[5] = 0;
-
                 }
                 else if (strcmp(optarg, "64") != 0)  {
                     fprintf(stderr, "Unsupported bits '%s'\n", optarg);
@@ -237,6 +236,7 @@ int main(int argc, char *argv[]) {
                 wait(&status);
             }
             if (ret) break;
+
             wmove(instructions, y, 40);
             clear_line(instructions);
         }
