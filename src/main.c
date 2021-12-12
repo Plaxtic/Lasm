@@ -9,7 +9,7 @@
 
 #define ARCH KS_ARCH_X86
 
-#include "utils/syscalls.h"
+#include "utils/ipc.h"
 #include "utils/history.h"
 #include "utils/windows.h"
 #include "utils/labels.h"
@@ -29,7 +29,7 @@ uint8_t *assemble(const char *, size_t*, ks_engine*);
 int get_regs(pid_t child, struct user_regs_struct *regs);
 
 int main(int argc, char *argv[]) {
-    char filename[6] = "nul";
+    char filename[22] = "/usr/local/bin/nul";
 
     // get options
     int bits = KS_MODE_64;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
                     bits = KS_MODE_32; 
                     strcat(filename, "32");
-                    filename[5] = 0;
+                    filename[21] = 0;
                 }
                 else if (strcmp(optarg, "64") != 0)  {
                     fprintf(stderr, "Unsupported bits '%s'\n", optarg);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     }
 
     // load history log
-    FILE *log = fopen(".history", "r+");
+    FILE *log = fopen("/home/funk/.lasm_history", "r+");
     if (log == NULL) {
         perror("fopen");
         return EXIT_FAILURE;
@@ -212,6 +212,7 @@ int main(int argc, char *argv[]) {
         // get instruction
         curr = get_instruction(instructions, curr, 42, y);
         if (curr == NULL) break;
+        curr->adr = inst_pointer;
 
         // skip enter or deleted line
         if (!curr->instruction[0]) continue;

@@ -18,6 +18,7 @@ struct history *create_history_struct() {
     new->idx = 0;
     new->next = NULL;
     new->prev = NULL;
+
     return new;
 }
 

@@ -23,7 +23,6 @@ void print_syntax_options() {
 }
 
 int get_syntax(char *option) {
-
     for (int i = 0;; ++i) {
         if (syntax_table[i].name == NULL)
             return -1;

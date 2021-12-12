@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <ncurses.h>
 
-#include "syscalls.h"
+#include "ipc.h"
 #include "windows.h"
 #include "history.h"
 
@@ -110,7 +110,9 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                 break;
 
             default:
-                if (cursor < MAINWINWIDTH-2 && cursor < MAXINSTRUCTIONSIZE+x) {
+                if (cursor < MAINWINWIDTH-2 && 
+                    cursor < MAXINSTRUCTIONSIZE+x &&
+                    isprint(ch)) {
 
                     // save char
                     curr->instruction[len++] = ch;

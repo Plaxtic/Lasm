@@ -9,6 +9,6 @@ section .text
 _start:
 times 0x5000 nop
 
-    mov rdi, 0
+    xor rdi, rdi
     mov rax, SYS_EXIT
     syscall

@@ -24,7 +24,7 @@ char *get_last_word(char *op) {
 
 bool is_jump(char*op) {
     // TODO
-    return op[0] == 'j' || op[0] == 'J';
+    return toupper(op[0]) == 'J';
 }
 
 long long get_adr_by_name(struct label *head, char *name){
@@ -44,10 +44,12 @@ int replace_label(struct label *head, char *op, unsigned long long rip) {
     char *last_word = get_last_word(op);
     size_t len = strlen(last_word);
     long long adr = get_adr_by_name(head, last_word);
+
     if (adr > 0) {
         snprintf(last_word, MAXINSTRUCTIONSIZE-len, "%lld", adr-rip);
         return 0;
     }
+
     return -1;
 }
 
@@ -70,6 +72,7 @@ struct label *addlabel(struct label *prev, char *name, unsigned long long adr) {
         new->adr = adr;
         new->next = prev;
     }
+
     return new;
 }
 
