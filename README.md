@@ -2,7 +2,7 @@
 
 ![](imgs/example.png)
 
-Requires keystone assembler library
+Requires nasm and keystone assembler library
 
 To place a label (save an address to jmp to), type a string with ':' at the end 
 

@@ -29,7 +29,11 @@ uint8_t *assemble(const char *, size_t*, ks_engine*);
 int get_regs(pid_t child, struct user_regs_struct *regs);
 
 int main(int argc, char *argv[]) {
+#ifdef INSTALL
     char filename[22] = "/usr/local/bin/nul";
+#else
+    char filename[22] = "./nul";
+#endif
 
     // get options
     int bits = KS_MODE_64;
