@@ -1,4 +1,5 @@
 #include <keystone/keystone.h>
+#include <linux/limits.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/user.h>
@@ -132,7 +133,14 @@ int main(int argc, char *argv[]) {
     }
 
     // load history log
-    FILE *log = fopen("/home/funk/.lasm_history", "r+");
+#ifdef INSTALL
+    char history_path[PATH_MAX];
+    snprintf(history_path, PATH_MAX, "%s/.lasm_history", getenv("HOME"));
+#else
+    char *history_path = ".lasm_history";
+#endif
+    FILE *log = fopen(history_path, "r+");
+
     if (log == NULL) {
         perror("fopen");
         return EXIT_FAILURE;

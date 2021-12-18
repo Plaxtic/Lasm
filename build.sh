@@ -24,9 +24,13 @@ then
 
     PREFIX="/usr/local/bin/"
     DEFINE="INSTALL"
+
+    touch "$HOME/.lasm_history"
 else
     PREFIX=""
     DEFINE="NORMAL"
+
+    touch ".lasm_history"
 fi
 
 ## assemble file of nops

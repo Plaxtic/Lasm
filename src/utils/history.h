@@ -30,7 +30,6 @@ _start:"
 struct history {
     char instruction[MAXINSTRUCTIONSIZE];
     unsigned long long adr;
-    int idx;
     struct history *next;
     struct history *prev;
 };

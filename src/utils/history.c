@@ -15,7 +15,6 @@ struct history *create_history_struct() {
 
     memset(new->instruction, 0, MAXINSTRUCTIONSIZE);
     new->adr = 0;
-    new->idx = 0;
     new->next = NULL;
     new->prev = NULL;
 
