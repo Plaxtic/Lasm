@@ -1,13 +1,9 @@
 #ifndef SYNTAX_H
 #define SYNTAX_H
 
-#include <stdio.h>
-#include <string.h>
-
 #include "syntax.h"
 
-
-struct syntax  syntax_table[] = {
+struct syntax syntax_table[] = {
     {KS_OPT_SYNTAX_INTEL, "intel"},
     {KS_OPT_SYNTAX_ATT, "att"},
     {KS_OPT_SYNTAX_NASM, "nasm"},

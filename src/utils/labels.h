@@ -1,4 +1,10 @@
-#define MAXLABELLEN 20
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
+
+#define MAXLABELLEN 24
 
 struct label {
     char name[MAXLABELLEN];

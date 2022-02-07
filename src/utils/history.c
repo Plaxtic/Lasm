@@ -1,10 +1,6 @@
 #ifndef HISTORY_H
 #define HISTORY_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "history.h"
 
 struct history *create_history_struct() {
@@ -14,7 +10,7 @@ struct history *create_history_struct() {
         return NULL;
 
     memset(new->instruction, 0, MAXINSTRUCTIONSIZE);
-    new->adr = 0;
+    new->addr = 0;
     new->next = NULL;
     new->prev = NULL;
 
@@ -40,14 +36,12 @@ struct history *find_head(struct history *curr) {
     return find_head(curr->next);
 }
 
-struct history *find_by_adr(unsigned long long adr, struct history *head) {
-    if (head == NULL || head->adr == adr)
+struct history *find_by_addr(unsigned long long addr, struct history *head) {
+    if (head == NULL || head->addr == addr)
         return head;
 
-    return find_by_adr(adr, head->prev);
+    return find_by_addr(addr, head->prev);
 }
-
-
 
 struct history *load_history(FILE *log) {
     struct history *new = create_history_struct();
@@ -71,7 +65,7 @@ struct history *load_history(FILE *log) {
     char buf[MAXINSTRUCTIONSIZE+24];
     while (fgets(buf, sizeof buf, log) != NULL) {
         buf[strlen(buf)-1] = 0;
-        new->adr = strtoul(buf, 0, 10);
+        new->addr = strtoul(buf, 0, 10);
         strncpy(new->instruction, strchr(buf, ':')+1, MAXINSTRUCTIONSIZE);
         new = add_to_history(new);
     }

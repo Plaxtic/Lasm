@@ -1,4 +1,12 @@
-#define MAINWINWIDTH (COLS/2) + 3 
+#include <sys/user.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#define MAINWINWIDTH ((COLS/2) + 3)
+#define MAINWINHEIGHT (LINES)
+#define SUBWINWIDTH ((COLS/2) - 3)
+#define SUBWINHEIGHT (LINES/2)
 
 #define RIGHT 5
 #define LEFT 4
@@ -7,6 +15,9 @@
 #define DOWN 2
 #define BACKSPACE 127 
 #define CTL_BACKSPACE 263 
+
+#include <ncurses.h>
+#include <sys/wait.h>
 
 WINDOW *create_newwin(int height, int width, int starty, int startx);
 void clear_line(WINDOW *w);

@@ -1,15 +1,8 @@
 #ifndef LABELS_H
 #define LABELS_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdbool.h>
-
 #include "labels.h"
 #include "history.h"
-
 
 char *get_last_word(char *op) {
     int len = strlen(op);
@@ -52,8 +45,6 @@ int replace_label(struct label *head, char *op, unsigned long long rip) {
 
     return -1;
 }
-
-
 
 struct label *addlabel(struct label *prev, char *name, unsigned long long adr) {
     int len = strlen(name)-1;

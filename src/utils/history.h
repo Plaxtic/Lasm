@@ -1,4 +1,8 @@
-#define MAXINSTRUCTIONSIZE 50 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#define MAXINSTRUCTIONSIZE 48
 
 // eflags
 #define CF 0x0001 	
@@ -29,7 +33,7 @@ _start:"
 
 struct history {
     char instruction[MAXINSTRUCTIONSIZE];
-    unsigned long long adr;
+    unsigned long long addr;
     struct history *next;
     struct history *prev;
 };

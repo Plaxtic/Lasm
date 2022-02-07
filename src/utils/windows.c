@@ -1,12 +1,6 @@
 #ifndef WINDOWS_H
 #define WINDOWS_H
 
-#include <sys/user.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <ncurses.h>
-
 #include "ipc.h"
 #include "windows.h"
 #include "history.h"
@@ -171,7 +165,6 @@ void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int
     }
 }
 
-
 void print_flags(WINDOW *w, int pos, struct user_regs_struct *regsb, 
                                      struct user_regs_struct *regsa){
     long long eflagsa = regsa->eflags;
@@ -204,7 +197,6 @@ void print_flags(WINDOW *w, int pos, struct user_regs_struct *regsb,
     mvwprintw(w, 12,  pos+19,"%c VIP : %d", (eflagsa & VIP) == (eflagsb & VIP) ? ' ' : '*', !!(eflagsa & VIP));
     mvwprintw(w, 13,  pos+19,"%c ID  : %d", (eflagsa &  ID) == (eflagsb &  ID) ? ' ' : '*', !!(eflagsa & ID) );
 }
-
 
 void print_regs(WINDOW *w, int pos, struct user_regs_struct *regsb, 
                                     struct user_regs_struct *regsa) {

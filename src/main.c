@@ -1,8 +1,10 @@
 #include <keystone/keystone.h>
 #include <linux/limits.h>
 #include <sys/ptrace.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/user.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
@@ -29,18 +31,21 @@ pid_t run_trace(char*);
 uint8_t *assemble(const char *, size_t*, ks_engine*);
 int get_regs(pid_t child, struct user_regs_struct *regs);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char **argv) {
+
 #ifdef INSTALL
     char filename[22] = "/usr/local/bin/nul";
 #else
     char filename[22] = "./nul";
 #endif
 
-    // get options
+    // default options
     int bits = KS_MODE_64;
     int syntax = -1;
     bool no_prelude = false;
     FILE *outfd = NULL;
+
+    // get options
     int op;
     while ((op = getopt(argc, argv, "b:s:o:hp")) != -1) {
         switch (op) {
@@ -56,7 +61,7 @@ int main(int argc, char *argv[]) {
 
                 if (outfd == NULL) {
                     perror("output");
-                    return 1;
+                    return EXIT_FAILURE;
                 }
                 break;
 
@@ -67,7 +72,7 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Unrecognized syntax '%s'\n", optarg);
                     fprintf(stderr, "Supported syntax (-s) options:\n\n");
                     print_syntax_options();
-                    return 1;
+                    return EXIT_FAILURE;
                 }
                 break;
 
@@ -77,8 +82,8 @@ int main(int argc, char *argv[]) {
                     printf("\n\t32 bit is not ready!!\n");
                     printf("\n\t(use anyway? [y/N])\n");
 
-                    if (getchar() != 'y')
-                        return 0;
+                    if (toupper(getchar()) != 'Y')
+                        return EXIT_SUCCESS;
 
                     bits = KS_MODE_32; 
                     strcat(filename, "32");
@@ -86,19 +91,19 @@ int main(int argc, char *argv[]) {
                 }
                 else if (strcmp(optarg, "64") != 0)  {
                     fprintf(stderr, "Unsupported bits '%s'\n", optarg);
-                    return 1;
+                    return EXIT_FAILURE;
                 }
                 break;
 
             // help
             case 'h':
                 print_usage(argv[0]);
-                return 0;
+                return EXIT_SUCCESS;
 
             // bad option
             default: 
                 print_usage(argv[0]);
-                return 1;
+                return EXIT_FAILURE;
         }
     }
 
@@ -106,14 +111,14 @@ int main(int argc, char *argv[]) {
     ks_engine *ks;
     if (ks_open(ARCH, bits, &ks) != KS_ERR_OK) {
         perror("ks_open");
-        return 1;
+        return EXIT_FAILURE;
     }
 
     // set syntax
     if (syntax != -1) {
         if (set_syntax(ks, syntax) < 0) {
             perror("set_syntax");
-            return 1;
+            return EXIT_FAILURE;
         }
     }
 
@@ -129,7 +134,7 @@ int main(int argc, char *argv[]) {
     wait(&status);
     if (WIFEXITED(status)) {
         puts("Failed to run subprocess");
-        return 1;
+        return EXIT_FAILURE;
     }
 
     // load history log
@@ -137,7 +142,7 @@ int main(int argc, char *argv[]) {
     char history_path[PATH_MAX];
     snprintf(history_path, PATH_MAX, "%s/.lasm_history", getenv("HOME"));
 #else
-    char *history_path = ".lasm_history";
+    char history_path[] = ".lasm_history";
 #endif
     FILE *log = fopen(history_path, "r+");
 
@@ -163,23 +168,32 @@ int main(int argc, char *argv[]) {
     noecho();
     keypad(stdscr, TRUE);
 
+    if (LINES < 40 || COLS < 170) {
+        fprintf(stderr, "Terminal is too small, continue? [N/y] ");
+
+        if (toupper(getchar()) != 'Y') {
+            endwin();
+            return EXIT_SUCCESS;
+        }
+    }
     // set dimensions 
-    int height = LINES/2;
-    int width = (COLS/2) - 3;
-    int starty = (LINES - height);
-    int startx = (COLS - width);
+    int starty = (LINES - SUBWINHEIGHT);
+    int startx = (COLS - SUBWINWIDTH);
 
     // create 3 windows
-    WINDOW *registers = create_newwin(height, width, starty, startx);
-    WINDOW *stack = create_newwin(height, width, 0, startx);
-    WINDOW *instructions = create_newwin(LINES, MAINWINWIDTH, 0, 0);
+    WINDOW *registers = create_newwin(SUBWINHEIGHT, SUBWINWIDTH, starty, startx);
+    WINDOW *stack = create_newwin(SUBWINHEIGHT, SUBWINWIDTH, 0, startx);
+    WINDOW *instructions = create_newwin(MAINWINHEIGHT, MAINWINWIDTH, 0, 0);
     keypad(instructions, TRUE);
 
+    // defaults
     int addr_oset = 28;
     int y = 2;
+    int ret = EXIT_SUCCESS;
+
+    // main loop
     long long stack_pointer;
     long long inst_pointer;
-    int ret = 0;
     while (1) {
 
         // clear and jump to top if at bottom
@@ -196,9 +210,9 @@ int main(int argc, char *argv[]) {
         inst_pointer = regsa.rip;
 
         // stack headings
-        mvwprintw(stack, 2, width/7, "rsp");
-        mvwprintw(stack, 1, width/2-3, "STACK");
-        mvwprintw(stack, 2, (width)-width/5, "hexdump");
+        mvwprintw(stack, 2, SUBWINWIDTH/7, "rsp");
+        mvwprintw(stack, 1, SUBWINWIDTH/2-3, "STACK");
+        mvwprintw(stack, 2, (SUBWINWIDTH)-SUBWINWIDTH/5, "hexdump");
 
         // print stack, pointer, and hex dump
         print_stack(stack, child, stack_pointer, 2, 20, 19, 15);
@@ -210,8 +224,8 @@ int main(int argc, char *argv[]) {
         wrefresh(registers);
 
         // update flags 
-        mvwprintw(registers, 1, width-20, "FLAGS");
-        print_flags(registers, width-33, &regsb, &regsa);
+        mvwprintw(registers, 1, SUBWINWIDTH-20, "FLAGS");
+        print_flags(registers, SUBWINWIDTH-33, &regsb, &regsa);
         wrefresh(registers);
 
         // save register state for comparison
@@ -224,7 +238,7 @@ int main(int argc, char *argv[]) {
         // get instruction
         curr = get_instruction(instructions, curr, 42, y);
         if (curr == NULL) break;
-        curr->adr = inst_pointer;
+        curr->addr = inst_pointer;
 
         // skip enter or deleted line
         if (!curr->instruction[0]) continue;
@@ -248,17 +262,18 @@ int main(int argc, char *argv[]) {
             for (i = 0; i < nsteps; ++i) {
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
-                    ret = 1;
+                    ret = EXIT_FAILURE;
                     break;
                 }
                 wait(&status);
             }
-            if (ret) break;
+            if (ret != 0) break;
 
             wmove(instructions, y, 40);
             clear_line(instructions);
         }
 
+        // is instruction or label 
         else {
             // if last operand is a label, replace with address
             // ---------- ONLY WORKING FOR JUMPS -------------
@@ -283,7 +298,7 @@ int main(int argc, char *argv[]) {
                 // set process to break on step
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
-                    ret = 1;
+                    ret = EXIT_FAILURE;
                     break;
                 }
 
@@ -294,7 +309,7 @@ int main(int argc, char *argv[]) {
                 if (outfd != NULL) 
                     fprintf(outfd, "\t%s\n", curr->instruction);
 
-                fprintf(log, "%llu:%s\n", curr->adr, curr->instruction);
+                fprintf(log, "%llu:%s\n", curr->addr, curr->instruction);
             }
             else {
 
@@ -333,7 +348,10 @@ int main(int argc, char *argv[]) {
         curr = add_to_history(curr);
     }
 
+    if (outfd) 
+        fclose(outfd);
     ks_close(ks);
+    fclose(log);
     delwin(instructions);
     delwin(stack);
     delwin(registers);
