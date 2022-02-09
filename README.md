@@ -9,7 +9,8 @@ Includes view of stack and register state.
 
 Requires nasm and keystone assembler library.
 
-To place a label (save an address to jmp to), type a string with ':' at the end 
+To place a label (save an address to jmp to), type a string with ':' 
+at the end.
 
 ```
                           [0x400080] label:
@@ -23,3 +24,9 @@ label:
 ```
 
 Type s to take a single step, type s [N] to take several steps.  
+```
+                          [0x400080] s 10
+```
+```
+                          [0x40008a]
+```
