@@ -4,8 +4,8 @@
 
 # Live assembly shell 
 
-Assembles, injects, and executes x86 CPU instuction. with view of stack
-and register state.
+Assembles, injects, and executes x86 CPU instuctions. 
+Includes view of stack and register state.
 
 Requires nasm and keystone assembler library.
 
