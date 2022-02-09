@@ -2,7 +2,12 @@
 
 ![](imgs/example.png)
 
-Requires nasm and keystone assembler library
+# Live assembly shell 
+
+Assembles, injects, and executes x86 CPU instuction. with view of stack
+and register state.
+
+Requires nasm and keystone assembler library.
 
 To place a label (save an address to jmp to), type a string with ':' at the end 
 
@@ -17,3 +22,4 @@ label:
                           [0x400080]>
 ```
 
+Type s to take a single step, type s [N] to take several steps.  

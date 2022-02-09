@@ -1,7 +1,5 @@
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <stdint.h>

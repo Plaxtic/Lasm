@@ -50,7 +50,6 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                         mvwprintw(w, y, x, "%s", curr->instruction);
                         wmove(w, y, cursor);
                         clear_line(w);
-
                     }
                 }
                 else {
