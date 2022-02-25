@@ -1,12 +1,12 @@
 #!/bin/sh -e
 
 ## check dependencies
-for dep in $(cat Requirements.txt)
+for req in $(cat Requirements.txt)
 do
-    D=`whereis $dep | cut -d ':' -f 2`
+    D=`whereis $req | cut -d ':' -f 2`
     if ! [[ $D ]]
     then
-        echo "missing dependency $dep"
+        echo "missing dependency $req"
         exit 1
     fi
 done
@@ -14,7 +14,6 @@ done
 ## install option
 if [ "$1" == "--install" ]
 then
-
     # check root for install
     if (( $UID ))
     then
@@ -24,12 +23,10 @@ then
 
     PREFIX="/usr/local/bin/"
     DEFINE="INSTALL"
-
     touch "$HOME/.lasm_history"
 else
     PREFIX=""
     DEFINE="NORMAL"
-
     touch ".lasm_history"
 fi
 

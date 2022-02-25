@@ -1,49 +1,22 @@
-#include <keystone/keystone.h>
-#include <linux/limits.h>
-#include <sys/ptrace.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <sys/user.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <string.h>
-#include <signal.h>
-#include <ncurses.h>
-
-#define ARCH KS_ARCH_X86
-
 #include "utils/ipc.h"
 #include "utils/history.h"
 #include "utils/windows.h"
 #include "utils/labels.h"
 #include "utils/syntax.h"
-
-
-#define USAGE "Usage: %s\n\
-\n\
-\t-o <outfile>\n\
-\t-s <asm syntax>\n\
-\t-b <bits>\n\n"
-
-
-void print_usage(char*);
-pid_t run_trace(char*);
-uint8_t *assemble(const char *, size_t*, ks_engine*);
-int get_regs(pid_t child, struct user_regs_struct *regs);
+#include "utils/wrappers.h"
 
 int main(int argc, char **argv) {
-
-#ifdef INSTALL
-    char filename[22] = "/usr/local/bin/nul";
-#else
-    char filename[22] = "./nul";
-#endif
 
     // default options
     int bits = KS_MODE_64;
     int syntax = -1;
     bool no_prelude = false;
     FILE *outfd = NULL;
+#ifdef INSTALL
+    char filename[22] = "/usr/local/bin/nul";
+#else
+    char filename[22] = "./nul";
+#endif
 
     // get options
     int op;
@@ -347,9 +320,8 @@ int main(int argc, char **argv) {
         }
         curr = add_to_history(curr);
     }
+    if (outfd) fclose(outfd);
 
-    if (outfd) 
-        fclose(outfd);
     ks_close(ks);
     fclose(log);
     delwin(instructions);
@@ -358,35 +330,3 @@ int main(int argc, char **argv) {
     endwin();
     return ret;
 }
-
-int get_regs(pid_t child, struct user_regs_struct *regs) {
-    return ptrace(PTRACE_GETREGS, child, 0, regs);
-}
-
-void print_usage(char *argv0) {
-    fprintf(stderr, USAGE, argv0);
-}
-
-pid_t run_trace(char *filename) {
-    pid_t child = fork();
-
-    if (!child) {
-        ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-        execl(filename, filename, NULL);
-        exit(0);
-    }
-    return child;
-}
-
-uint8_t *assemble(const char *code, size_t *nbytes, ks_engine *ks ) {
-    uint8_t *encode;
-    size_t count;
-
-    // compile CODE from 0 into "encode" of "size" bytes 
-    if (ks_asm(ks, code, 0, &encode, nbytes, &count) != KS_ERR_OK)
-        return NULL;
-
-    return encode;
-}
-
-
