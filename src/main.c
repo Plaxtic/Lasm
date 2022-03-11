@@ -1,3 +1,5 @@
+#include <linux/limits.h>
+
 #include "utils/ipc.h"
 #include "utils/history.h"
 #include "utils/windows.h"
@@ -118,11 +120,11 @@ int main(int argc, char **argv) {
     char history_path[] = ".lasm_history";
 #endif
     FILE *log = fopen(history_path, "r+");
-
     if (log == NULL) {
         perror("fopen");
         return EXIT_FAILURE;
     }
+
     struct history *tmp, *curr;
     tmp = curr = load_history(log);
     fseek(log, 0, SEEK_END);
@@ -131,7 +133,7 @@ int main(int argc, char **argv) {
     struct label *tmpl, *labels;
     tmpl = labels = NULL;
 
-    // make first try all match
+    // fill registers to make first try all match
     struct user_regs_struct regsb, regsa;
     get_regs(child, &regsb);
 
@@ -140,7 +142,6 @@ int main(int argc, char **argv) {
     raw();
     noecho();
     keypad(stdscr, TRUE);
-
     if (LINES < 40 || COLS < 170) {
         fprintf(stderr, "Terminal is too small, continue? [N/y] ");
 
@@ -149,6 +150,7 @@ int main(int argc, char **argv) {
             return EXIT_SUCCESS;
         }
     }
+
     // set dimensions 
     int starty = (LINES - SUBWINHEIGHT);
     int startx = (COLS - SUBWINWIDTH);
@@ -165,8 +167,6 @@ int main(int argc, char **argv) {
     int ret = EXIT_SUCCESS;
 
     // main loop
-    long long stack_pointer;
-    long long inst_pointer;
     while (1) {
 
         // clear and jump to top if at bottom
@@ -179,8 +179,8 @@ int main(int argc, char **argv) {
 
         // get register state 
         get_regs(child, &regsa);
-        stack_pointer = regsa.rsp;
-        inst_pointer = regsa.rip;
+        long long stack_pointer = regsa.rsp;
+        long long inst_pointer = regsa.rip;
 
         // stack headings
         mvwprintw(stack, 2, SUBWINWIDTH/7, "rsp");
@@ -222,8 +222,8 @@ int main(int argc, char **argv) {
         // step special command
         else if (!strcmp(curr->instruction, "s") || 
                  !strncmp(curr->instruction, "s ", 2)) {
-            clear_line(instructions);
             int nsteps, i = 0;
+            clear_line(instructions);
 
             // skip whitespace
             while (curr->instruction[++i] == ' ');
@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
             // mininum one step
             if (!(nsteps = strtoul(&curr->instruction[i], NULL, 10))) nsteps = 1;
 
-            // take nstep's
+            // take "n" steps
             for (i = 0; i < nsteps; ++i) {
                 if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
                     perror("Step Fail");
@@ -263,6 +263,8 @@ int main(int argc, char **argv) {
                 // print bytecode in hex
                 for (int i = 0; i < nbytes; i++)
                     mvwprintw(instructions, y, 2+(i*2), "%02x", bytes[i]);
+
+                // down one line
                 y++;
 
                 // inject raw assembled bytes to instruction pointer (rip)
@@ -310,15 +312,15 @@ int main(int argc, char **argv) {
             }
         }
 
+        // if you are in the middle of history, save command and preserve chain 
         if (curr->next != NULL) {
-
-            // if you are in the middle of history, save command and preserve chain 
             tmp = curr;
             curr = find_head(curr);
             memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
             strncpy(curr->instruction, tmp->instruction, MAXINSTRUCTIONSIZE);
         }
-        curr = add_to_history(curr);
+        if (strcmp(curr->instruction, curr->prev->instruction))
+            curr = add_to_history(curr);
     }
     if (outfd) fclose(outfd);
 
