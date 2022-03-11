@@ -321,6 +321,8 @@ int main(int argc, char **argv) {
         }
         if (strcmp(curr->instruction, curr->prev->instruction))
             curr = add_to_history(curr);
+        else 
+            memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
     }
     if (outfd) fclose(outfd);
 
