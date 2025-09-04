@@ -5,6 +5,21 @@
 #include "windows.h"
 #include "history.h"
 
+void init_ncurses() {
+    initscr();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    if (LINES < 40 || COLS < 170) {
+        fprintf(stderr, "Terminal is too small, continue? [N/y] ");
+
+        if (toupper(getchar()) != 'Y') {
+            endwin();
+            exit(EXIT_SUCCESS);
+        }
+    }
+}
+
 WINDOW *create_newwin(int height, int width, int starty, int startx){
     WINDOW *local_win;
 
@@ -136,6 +151,7 @@ char *hexdump(unsigned char *bytes, int len) {
 
 void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int stckln, int hdln, int lines) {
     char stack_buf[LONGSIZ+1];
+    char *hexdump_str;
 
     for (int i = 0; i < lines; i++) {
 
@@ -150,7 +166,9 @@ void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int
         mvwprintw(w, 3+i, rspoff+stckln, "0x%016llx", *((long long *)stack_buf));
 
         // hexdump
-        mvwprintw(w, 3+i, rspoff+(stckln*2)+hdln, "|%s", hexdump((uint8_t *)stack_buf, LONGSIZ));
+        hexdump_str = hexdump((uint8_t *)stack_buf, LONGSIZ);
+        mvwprintw(w, 3+i, rspoff+(stckln*2)+hdln, "|%s", hexdump_str);
+        free(hexdump_str);
 
         // get 8 more bytes of stack
         gettdata(child, rsp+((i*2+1)*LONGSIZ), stack_buf, LONGSIZ);
@@ -160,7 +178,9 @@ void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int
         mvwprintw(w, 3+i, rspoff+(stckln*2), "0x%016llx", *((long long *)stack_buf));
 
         // hexdump
-        mvwprintw(w, 3+i, rspoff+(stckln*2)+hdln+LONGSIZ+1, "%s|", hexdump((uint8_t *)stack_buf, LONGSIZ));
+        hexdump_str = hexdump((uint8_t *)stack_buf, LONGSIZ);
+        mvwprintw(w, 3+i, rspoff+(stckln*2)+hdln+LONGSIZ+1, "%s|", hexdump_str);
+        free(hexdump_str);
     }
 }
 

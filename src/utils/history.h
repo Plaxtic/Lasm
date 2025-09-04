@@ -1,6 +1,8 @@
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAXINSTRUCTIONSIZE 48
 
@@ -19,8 +21,9 @@ struct history {
     struct history *prev;
 };
 
+FILE *get_history_file();
 struct history *add_to_history(struct history*);
 struct history *find_head(struct history*);
 struct history *find_by_adr(unsigned long long, struct history*);
 struct history *load_history(FILE*);
-
+void free_history(struct history *head);

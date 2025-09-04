@@ -1,6 +1,3 @@
-#ifndef WRAPPERS_H
-#define WRAPPERS_H
-
 #include "wrappers.h"
 
 int get_regs(pid_t child, struct user_regs_struct *regs) {
@@ -32,4 +29,3 @@ uint8_t *assemble(const char *code, size_t *nbytes, ks_engine *ks ) {
 
     return encode;
 }
-#endif

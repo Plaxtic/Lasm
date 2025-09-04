@@ -39,9 +39,12 @@
 #define SUBWINWIDTH ((COLS/2) - 3)
 #define SUBWINHEIGHT (LINES/2)
 
-WINDOW *create_newwin(int height, int width, int starty, int startx);
-void clear_line(WINDOW *w);
-void print_regs(WINDOW*, int, struct user_regs_struct*,  struct user_regs_struct*);
-void print_flags(WINDOW*, int, struct user_regs_struct *, struct user_regs_struct*);
-void print_stack(WINDOW *w, pid_t child, unsigned long long rsp, int rspoff, int stckln, int hdln, int lines);
-struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y);
+void init_ncurses();
+WINDOW *create_newwin(int, int, int, int);
+struct history *get_instruction(WINDOW*, struct history*, int, int);
+void clear_line(WINDOW*);
+void print_stack(WINDOW *, pid_t, unsigned long long, int, int, int, int);
+void print_regs(WINDOW*, int, struct user_regs_struct*,  
+        struct user_regs_struct*);
+void print_flags(WINDOW*, int, struct user_regs_struct *, 
+        struct user_regs_struct*);

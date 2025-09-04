@@ -14,11 +14,7 @@ int main(int argc, char **argv) {
     int syntax = -1;
     bool no_prelude = false;
     FILE *outfd = NULL;
-#ifdef INSTALL
-    char filename[22] = "/usr/local/bin/nul";
-#else
-    char filename[22] = "./nul";
-#endif
+    char filename[22] = NULFILE;
 
     // get options
     int op;
@@ -103,31 +99,35 @@ int main(int argc, char **argv) {
 
     // run program in child process and trace with parent
     pid_t child = run_trace(filename);
+    if (child == -1) {
+        perror("run trace");
+        return EXIT_FAILURE;
+    }
 
     // get status
     int status;
     wait(&status);
-    if (WIFEXITED(status)) {
+    if (WIFEXITED(status) || WIFSIGNALED(status)) {
         puts("Failed to run subprocess");
         return EXIT_FAILURE;
     }
 
-    // load history log
-#ifdef INSTALL
-    char history_path[PATH_MAX];
-    snprintf(history_path, PATH_MAX, "%s/.lasm_history", getenv("HOME"));
-#else
-    char history_path[] = ".lasm_history";
-#endif
-    FILE *log = fopen(history_path, "r+");
+    // open logfile
+    FILE *log = get_history_file();
     if (log == NULL) {
-        perror("fopen");
+        perror("Failed to load history file");
         return EXIT_FAILURE;
     }
 
+
     struct history *tmp, *curr;
     tmp = curr = load_history(log);
+    if (curr == NULL) {
+        perror("Failed to load history");
+        return EXIT_FAILURE;
+    }
     fseek(log, 0, SEEK_END);
+
 
     // initalise label list
     struct label *tmpl, *labels;
@@ -137,34 +137,23 @@ int main(int argc, char **argv) {
     struct user_regs_struct regsb, regsa;
     get_regs(child, &regsb);
 
-    // init ncurses
-    initscr();
-    raw();
-    noecho();
-    keypad(stdscr, TRUE);
-    if (LINES < 40 || COLS < 170) {
-        fprintf(stderr, "Terminal is too small, continue? [N/y] ");
-
-        if (toupper(getchar()) != 'Y') {
-            endwin();
-            return EXIT_SUCCESS;
-        }
-    }
-
-    // set dimensions 
+    // initialise ncurses
+    init_ncurses();
     int starty = (LINES - SUBWINHEIGHT);
     int startx = (COLS - SUBWINWIDTH);
 
     // create 3 windows
-    WINDOW *registers = create_newwin(SUBWINHEIGHT, SUBWINWIDTH, starty, startx);
     WINDOW *stack = create_newwin(SUBWINHEIGHT, SUBWINWIDTH, 0, startx);
     WINDOW *instructions = create_newwin(MAINWINHEIGHT, MAINWINWIDTH, 0, 0);
+    WINDOW *registers = create_newwin(SUBWINHEIGHT, SUBWINWIDTH, 
+            starty, startx);
     keypad(instructions, TRUE);
 
     // defaults
     int addr_oset = 28;
     int y = 2;
     int ret = EXIT_SUCCESS;
+    unsigned long long loop_begin = 0;
 
     // main loop
     while (1) {
@@ -208,6 +197,30 @@ int main(int argc, char **argv) {
         mvwprintw(instructions, y, addr_oset, "[%#010llx]> ", inst_pointer);
         wrefresh(instructions);
 
+        // perform loops
+        if (loop_begin != 0) {
+            sleep(1);
+            if (ptrace(PTRACE_SINGLESTEP, child, NULL, NULL) < 0) {
+                perror("Step Fail");
+                ret = EXIT_FAILURE;
+                break;
+            }
+            wait(&status);
+
+/*            mvwprintw(instructions, y, 2, "%#llx : %#llx", 
+                    inst_pointer, loop_begin);    
+*/
+
+            if (inst_pointer > loop_begin+1) {
+                loop_begin = 0;
+            }
+            continue;
+        }
+        if (y > 3 && inst_pointer < curr->prev->addr) {
+            loop_begin = inst_pointer;
+            continue;
+        }
+
         // get instruction
         curr = get_instruction(instructions, curr, 42, y);
         if (curr == NULL) break;
@@ -221,7 +234,7 @@ int main(int argc, char **argv) {
 
         // step special command
         else if (!strcmp(curr->instruction, "s") || 
-                 !strncmp(curr->instruction, "s ", 2)) {
+                !strncmp(curr->instruction, "s ", 2)) {
             int nsteps, i = 0;
             clear_line(instructions);
 
@@ -255,7 +268,7 @@ int main(int argc, char **argv) {
             // try assemble buffer
             size_t nbytes;
             uint8_t *bytes = assemble(curr->instruction, &nbytes, ks);
-            if (nbytes > 0) {
+            if (nbytes > 0 && bytes != NULL) {
 
                 // cover "Invalid" with spaces
                 mvwprintw(instructions, y, 2, "           ");
@@ -319,13 +332,23 @@ int main(int argc, char **argv) {
             memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
             strncpy(curr->instruction, tmp->instruction, MAXINSTRUCTIONSIZE);
         }
-        if (strcmp(curr->instruction, curr->prev->instruction))
-            curr = add_to_history(curr);
-        else 
-            memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
-    }
-    if (outfd) fclose(outfd);
 
+        /*
+
+           if (strcmp(curr->instruction, curr->prev->instruction))
+           curr = add_to_history(curr);
+           else 
+           memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
+
+*/
+
+        curr = add_to_history(curr);
+    }
+
+    free_history(curr); // or use your main history head pointer, e.g., the initial 'curr'
+    free_labels(labels);
+
+    if (outfd) fclose(outfd);
     ks_close(ks);
     fclose(log);
     delwin(instructions);
