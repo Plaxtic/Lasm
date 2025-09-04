@@ -35,12 +35,10 @@ int handle_loops(struct shell_context *ctx,  unsigned long long *loop_begin) {
         }
         return 1;
     }
-    
     if (ctx->current_line > 3 && inst_pointer < curr->prev->addr) {
         *loop_begin = inst_pointer;
         return 1;
     }
-    
     return 0;
 }
 
@@ -66,8 +64,8 @@ int process_instruction(struct shell_context *ctx) {
 
 
 int handle_step_command(struct shell_context *ctx) {
-    int nsteps, i = 0;
     struct history *curr = ctx->history_head;
+    int nsteps, i = 0;
     clear_line(ctx->win_instructions);
 
     // Skip whitespace
@@ -85,7 +83,6 @@ int handle_step_command(struct shell_context *ctx) {
         }
         wait(&ctx->child_status);
     }
-
     wmove(ctx->win_instructions, ctx->current_line, 40);
     clear_line(ctx->win_instructions);
     return 0;
@@ -104,6 +101,7 @@ int handle_assembly(struct shell_context *ctx) {
         bytes = assemble(curr->instruction, &nbytes, ctx->ks);
     }
 
+    // try to execute
     if (nbytes > 0 && bytes != NULL) {
         return execute_assembly(ctx, bytes, nbytes);
     } else {

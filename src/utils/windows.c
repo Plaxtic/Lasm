@@ -18,6 +18,13 @@ void init_ncurses() {
     }
 }
 
+void jump_to_bottom(struct shell_context *ctx) {
+    ctx->current_line = 2;
+    wclear(ctx->win_instructions);
+    box(ctx->win_instructions, '|' , '-');
+    wrefresh(ctx->win_instructions);
+}
+
 void update_ui(struct shell_context *ctx) {
 
     // stack headings
@@ -80,8 +87,11 @@ struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w
                 if (cursor_pos > 0) {
 
                     // Shift everything left from cursor position
-                    memmove(&curr->instruction[cursor_pos - 1], &curr->instruction[cursor_pos], len - cursor_pos + 1);
+                    memmove(&curr->instruction[cursor_pos - 1], 
+                            &curr->instruction[cursor_pos], 
+                            len - cursor_pos + 1);
 
+                    // decrement
                     len--;
                     cursor_pos--;
                     screen_cursor--;
@@ -98,8 +108,9 @@ struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w
                 }
                 break;
 
-            case CTL_BACKSPACE:
-                // Word delete - delete from cursor back to previous space/start
+            case CTL_BACKSPACE: // delete until whitespace
+
+                // word delete - delete from cursor back to previous space/start
                 if (cursor_pos > 0) {
                     int start_pos = cursor_pos;
 
@@ -112,7 +123,7 @@ struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w
                         cursor_pos--;
                     }
 
-                    // Shift remaining text left
+                    // shift remaining text left
                     memmove(&curr->instruction[cursor_pos],
                             &curr->instruction[start_pos],
                             len - start_pos + 1);
@@ -120,7 +131,7 @@ struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w
                     len -= (start_pos - cursor_pos);
                     screen_cursor = x + cursor_pos;
 
-                    // Redraw
+                    // redraw
                     mvwprintw(w, y, x, "%s ", curr->instruction);
                     wmove(w, y, screen_cursor);
                     clear_line(w);
@@ -140,6 +151,42 @@ struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w
                     screen_cursor--;
                 }
                 break;
+
+            case CTL_LEFT:   // jump word
+                if (cursor_pos > 0) {
+                    if (cursor_pos > 0 && curr->instruction[cursor_pos - 1] == ' ') {
+                        cursor_pos--;
+                    }
+                    while (cursor_pos > 0 && curr->instruction[cursor_pos - 1] == ' ') {
+                        cursor_pos--;
+                    }
+                    while (cursor_pos > 0 && curr->instruction[cursor_pos - 1] != ' ') {
+                        cursor_pos--;
+                    }
+                    screen_cursor = x + cursor_pos;
+                    wmove(w, y, screen_cursor);
+                }
+                break;
+
+            case CTL_RIGHT:  // jump word
+                if (cursor_pos < len) {
+                    if (cursor_pos < len && curr->instruction[cursor_pos] == ' ') {
+                        while (cursor_pos < len && curr->instruction[cursor_pos] == ' ') {
+                            cursor_pos++;
+                        }
+                    } else {
+                        while (cursor_pos < len && curr->instruction[cursor_pos] != ' ') {
+                            cursor_pos++;
+                        }
+                        while (cursor_pos < len && curr->instruction[cursor_pos] == ' ') {
+                            cursor_pos++;
+                        }
+                    }
+                    screen_cursor = x + cursor_pos;
+                    wmove(w, y, screen_cursor);
+                }
+                break;
+
 
             case CTL_C:
                 return NULL;

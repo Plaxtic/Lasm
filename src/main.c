@@ -11,23 +11,18 @@
 int main(int argc, char **argv) {
     struct shell_context ctx;
     unsigned long long loop_begin = 0;
-    int ret = EXIT_SUCCESS;
+    int return_value = EXIT_SUCCESS;
 
     // initialize shell context
-    if (shell_init(&ctx, argc, argv) != 0) {
+    if (shell_init(&ctx, argc, argv) != 0)
         return EXIT_FAILURE;
-    }
 
     // main loop
     while (1) {
 
         // clear and jump to top if at bottom
-        if (ctx.current_line > LINES-3) {
-            ctx.current_line = 2;
-            wclear(ctx.win_instructions);
-            box(ctx.win_instructions, '|' , '-');
-            wrefresh(ctx.win_instructions);
-        }
+        if (ctx.current_line > LINES-3)
+            jump_to_bottom(&ctx);
 
         // get register state 
         get_regs(ctx.child, &ctx.regs_after);
@@ -36,25 +31,25 @@ int main(int argc, char **argv) {
         update_ui(&ctx);
 
         // perform loops
-        if (handle_loops(&ctx, &loop_begin)) {
-            continue;
-        }
+        handle_loops(&ctx, &loop_begin);
 
         // get instruction
         ctx.history_head = get_instruction(&ctx, 42);
-        if (ctx.history_head == NULL) break;
+        if (ctx.history_head == NULL) 
+            break;
         
         // update instruction pointer
         ctx.history_head->addr = ctx.regs_after.rip;
 
         // Process the instruction
-        ret = process_instruction(&ctx);
-        if (ret != EXIT_SUCCESS) break;
+        return_value = process_instruction(&ctx);
+        if (return_value != 0)
+            break;
 
         // Manage history
         manage_history(&ctx);
     }
     shell_cleanup(&ctx);
 
-    return ret;
+    return return_value;
 }

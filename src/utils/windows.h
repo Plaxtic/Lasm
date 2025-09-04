@@ -36,6 +36,8 @@
 #define DOWN 2
 #define BACKSPACE 263 // 127 
 #define CTL_BACKSPACE 8 // 263 
+#define CTL_RIGHT 569 
+#define CTL_LEFT 554
 
 // dimensions
 #define MAINWINWIDTH ((COLS/2) + 3)
@@ -45,9 +47,9 @@
 
 void init_ncurses();
 WINDOW *create_newwin(int, int, int, int);
-// struct history *get_instruction(WINDOW*, struct history*, int, int);
-struct history *get_instruction(struct shell_context *ctx, int x);
+struct history *get_instruction(struct shell_context *, int);
 void clear_line(WINDOW*);
+void jump_to_bottom(struct shell_context *);
 void print_stack(WINDOW *, pid_t, unsigned long long, int, int, int, int);
 void print_regs(WINDOW*, int, struct user_regs_struct*,  
         struct user_regs_struct*);
