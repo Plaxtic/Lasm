@@ -70,6 +70,9 @@ struct label *addlabel(struct label *prev, char *name, unsigned long long adr) {
 bool is_label(char *name) {
     int len = strlen(name);
 
+    if (len <= 1)
+        return false;
+
     if (name[len-1] != ':')
         return false;
 

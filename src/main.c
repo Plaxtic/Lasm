@@ -6,6 +6,7 @@
 #include "utils/labels.h"
 #include "utils/syntax.h"
 #include "utils/wrappers.h"
+#include "utils/command_parse.h"
 
 int main(int argc, char **argv) {
 
@@ -266,8 +267,11 @@ int main(int argc, char **argv) {
             replace_label(labels, curr->instruction, inst_pointer);
 
             // try assemble buffer
-            size_t nbytes;
-            uint8_t *bytes = assemble(curr->instruction, &nbytes, ks);
+            size_t nbytes = 0;
+            uint8_t *bytes = NULL;
+            if (!is_buggy_char(curr->instruction))
+                bytes = assemble(curr->instruction, &nbytes, ks);
+
             if (nbytes > 0 && bytes != NULL) {
 
                 // cover "Invalid" with spaces

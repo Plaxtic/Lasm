@@ -43,7 +43,6 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
     int ch;
     while ((ch = mvwgetch(w, y, cursor)) != '\n') {
         switch (ch) {
-
             case BACKSPACE:
                 if (cursor > x) {
 
@@ -224,7 +223,7 @@ void print_regs(WINDOW *w, int pos, struct user_regs_struct *regsb,
     mvwprintw(w, 4,  pos, "%c rcx: 0x%016llx", regsb->rcx == regsa->rcx ? ' ' : '*', regsa->rcx);
     mvwprintw(w, 5,  pos, "%c rdx: 0x%016llx", regsb->rdx == regsa->rdx ? ' ' : '*', regsa->rdx);
     mvwprintw(w, 6,  pos, "%c rdi: 0x%016llx", regsb->rdi == regsa->rdi ? ' ' : '*', regsa->rdi);
-    mvwprintw(w, 7,  pos, "%c rsi: 0x%016llx", regsb->rsi == regsa->rdi ? ' ' : '*', regsa->rsi);
+    mvwprintw(w, 7,  pos, "%c rsi: 0x%016llx", regsb->rsi == regsa->rsi ? ' ' : '*', regsa->rsi);
     mvwprintw(w, 8,  pos, "%c rip: 0x%016llx", regsb->rip == regsa->rip ? ' ' : '*', regsa->rip);
     mvwprintw(w, 9,  pos, "%c rsp: 0x%016llx", regsb->rsp == regsa->rsp ? ' ' : '*', regsa->rsp);
     mvwprintw(w, 10, pos, "%c rbp: 0x%016llx", regsb->rbp == regsa->rbp ? ' ' : '*', regsa->rbp);

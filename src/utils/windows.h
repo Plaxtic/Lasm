@@ -30,8 +30,8 @@
 #define CTL_C 3
 #define UP 3 
 #define DOWN 2
-#define BACKSPACE 127 
-#define CTL_BACKSPACE 263 
+#define BACKSPACE 263 // 127 
+#define CTL_BACKSPACE 8 // 263 
 
 // dimensions
 #define MAINWINWIDTH ((COLS/2) + 3)
