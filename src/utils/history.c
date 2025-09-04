@@ -1,6 +1,3 @@
-#ifndef HISTORY_H
-#define HISTORY_H
-
 #include "history.h"
 
 
@@ -125,4 +122,3 @@ void free_history(struct history *head) {
         current = next;
     }
 }
-#endif

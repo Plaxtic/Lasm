@@ -1,3 +1,6 @@
+#ifndef IPC_H
+#define IPC_H
+
 #include <stddef.h>
 #include <string.h>
 #include <sys/ptrace.h>
@@ -16,3 +19,5 @@
 
 long long gettdata(pid_t, long long, char*, int);
 int puttdata(pid_t, long long, uint8_t*, int);
+
+#endif

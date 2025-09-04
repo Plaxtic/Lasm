@@ -1,6 +1,3 @@
-#ifndef LABELS_H
-#define LABELS_H
-
 #include "labels.h"
 #include "history.h"
 
@@ -101,4 +98,3 @@ void free_labels(struct label *head) {
         current = next;
     }
 }
-#endif

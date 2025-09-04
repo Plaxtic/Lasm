@@ -1,3 +1,6 @@
+#ifndef WINDOWS_H
+#define WINDOWS_H
+
 #include <sys/user.h>
 #include <string.h>
 #include <stdlib.h>
@@ -48,3 +51,5 @@ void print_regs(WINDOW*, int, struct user_regs_struct*,
         struct user_regs_struct*);
 void print_flags(WINDOW*, int, struct user_regs_struct *, 
         struct user_regs_struct*);
+
+#endif

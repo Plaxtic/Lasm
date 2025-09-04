@@ -1,3 +1,5 @@
+#ifndef HISTORY_H
+#define HISTORY_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,3 +29,5 @@ struct history *find_head(struct history*);
 struct history *find_by_adr(unsigned long long, struct history*);
 struct history *load_history(FILE*);
 void free_history(struct history *head);
+
+#endif

@@ -1,6 +1,3 @@
-#ifndef WINDOWS_H
-#define WINDOWS_H
-
 #include "ipc.h"
 #include "windows.h"
 #include "history.h"
@@ -37,102 +34,226 @@ void clear_line(WINDOW *w) {
 }
 
 struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
-    int len = 0;
-    int cursor = x;
+    int len = strlen(curr->instruction);  // Start with existing string length
+    int cursor_pos = len;  // Start cursor at end
+    int screen_cursor = x + len;  // Screen position
 
     int ch;
-    while ((ch = mvwgetch(w, y, cursor)) != '\n') {
+    while ((ch = mvwgetch(w, y, screen_cursor)) != '\n') {
         switch (ch) {
+
             case BACKSPACE:
-                if (cursor > x) {
+                if (cursor_pos > 0) {
+                    //
+                    // Shift everything left from cursor position
+                    memmove(&curr->instruction[cursor_pos - 1], &curr->instruction[cursor_pos], len - cursor_pos + 1);
 
-                    // delete last char
-                    curr->instruction[--len] = 0;
-                    mvwprintw(w, y, x, "%s", curr->instruction);
+                    len--;
+                    cursor_pos--;
+                    screen_cursor--;
 
-                    // decrement cursor
-                    cursor--;
-                    clear_line(w);
+                    curr->instruction[len] = '\0';
+
+                    // redraw
+                    wmove(w, y, x);
+                    wclrtoeol(w);
+                    wprintw(w, "%s", curr->instruction);
+                    wmove(w, y, screen_cursor);
+                    box(w, '|', '-');
+                    wrefresh(w);
                 }
                 break;
 
             case CTL_BACKSPACE:
-                if (curr->instruction[len-1] == ' ') {
-                    while (cursor > x && curr->instruction[len-1] == ' ') {
-                        curr->instruction[len--] = 0;
-                        cursor--;
-                        mvwprintw(w, y, x, "%s", curr->instruction);
-                        wmove(w, y, cursor);
-                        clear_line(w);
+                // Word delete - delete from cursor back to previous space/start
+                if (cursor_pos > 0) {
+                    int start_pos = cursor_pos;
+
+                    // Skip current spaces
+                    while (cursor_pos > 0 && curr->instruction[cursor_pos - 1] == ' ') {
+                        cursor_pos--;
                     }
-                }
-                else {
-                    while (cursor > x && curr->instruction[len-1] != ' ') {
-                        curr->instruction[len--] = 0;
-                        cursor--;
-                        mvwprintw(w, y, x, "%s", curr->instruction);
-                        wmove(w, y, cursor);
-                        clear_line(w);
+                    // Delete word
+                    while (cursor_pos > 0 && curr->instruction[cursor_pos - 1] != ' ') {
+                        cursor_pos--;
                     }
+
+                    // Shift remaining text left
+                    memmove(&curr->instruction[cursor_pos],
+                            &curr->instruction[start_pos],
+                            len - start_pos + 1);
+
+                    len -= (start_pos - cursor_pos);
+                    screen_cursor = x + cursor_pos;
+
+                    // Redraw
+                    mvwprintw(w, y, x, "%s ", curr->instruction);
+                    wmove(w, y, screen_cursor);
+                    clear_line(w);
                 }
                 break;
 
             case KEY_RIGHT:
-                // TODO
+                if (cursor_pos < len) {
+                    cursor_pos++;
+                    screen_cursor++;
+                }
+                break;
+
+            case KEY_LEFT:
+                if (cursor_pos > 0) {
+                    cursor_pos--;
+                    screen_cursor--;
+                }
                 break;
 
             case CTL_C:
                 return NULL;
 
-            case KEY_LEFT:
-                // TODO
-                break;
-
             case KEY_UP:
                 if (curr->prev != NULL) {
-
-                    // move back in history
                     curr = curr->prev;
+                    len = strlen(curr->instruction);
+                    cursor_pos = len;  // Put cursor at end
+                    screen_cursor = x + len;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
-
-                    // reset len and cursor
-                    len = strlen(curr->instruction);
-                    cursor = len + x;
                 }
                 break;
 
             case KEY_DOWN:
                 if (curr->next != NULL) {
-
-                    // move forward in history
                     curr = curr->next;
+                    len = strlen(curr->instruction);
+                    cursor_pos = len;  // Put cursor at end
+                    screen_cursor = x + len;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
-
-                    // reset len and cursor
-                    len = strlen(curr->instruction);
-                    cursor = len + x;
                 }
                 break;
 
             default:
-                if (cursor < MAINWINWIDTH-2 && 
-                    cursor < MAXINSTRUCTIONSIZE+x &&
+                if (screen_cursor < MAINWINWIDTH-2 &&
+                    len < MAXINSTRUCTIONSIZE-1 &&
                     isprint(ch)) {
 
-                    // save char
-                    curr->instruction[len++] = ch;
+                    // Insert character at cursor position
+                    memmove(&curr->instruction[cursor_pos + 1],
+                            &curr->instruction[cursor_pos],
+                            len - cursor_pos + 1);  // +1 for null terminator
 
-                    // echo
+                    curr->instruction[cursor_pos] = ch;
+                    len++;
+                    cursor_pos++;
+                    screen_cursor++;
+
+                    // Redraw from current position
                     mvwprintw(w, y, x, "%s", curr->instruction);
-                    cursor++;
+                    wmove(w, y, screen_cursor);
                 }
                 break;
         }
     }
     return curr;
 }
+
+//struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
+//    int len = 0;
+//    int cursor = x;
+//
+//    int ch;
+//    while ((ch = mvwgetch(w, y, cursor)) != '\n') {
+//        switch (ch) {
+//            case BACKSPACE:
+//                if (cursor > x) {
+//
+//                    // delete last char
+//                    curr->instruction[--len] = 0;
+//                    mvwprintw(w, y, x, "%s", curr->instruction);
+//
+//                    // decrement cursor
+//                    cursor--;
+//                    clear_line(w);
+//                }
+//                break;
+//
+//            case CTL_BACKSPACE:
+//                if (curr->instruction[len-1] == ' ') {
+//                    while (cursor > x && curr->instruction[len-1] == ' ') {
+//                        curr->instruction[len--] = 0;
+//                        cursor--;
+//                        mvwprintw(w, y, x, "%s", curr->instruction);
+//                        wmove(w, y, cursor);
+//                        clear_line(w);
+//                    }
+//                }
+//                else {
+//                    while (cursor > x && curr->instruction[len-1] != ' ') {
+//                        curr->instruction[len--] = 0;
+//                        cursor--;
+//                        mvwprintw(w, y, x, "%s", curr->instruction);
+//                        wmove(w, y, cursor);
+//                        clear_line(w);
+//                    }
+//                }
+//                break;
+//
+//            case KEY_RIGHT:
+//                // TODO
+//                break;
+//
+//            case CTL_C:
+//                return NULL;
+//
+//            case KEY_LEFT:
+//                // TODO
+//                break;
+//
+//            case KEY_UP:
+//                if (curr->prev != NULL) {
+//
+//                    // move back in history
+//                    curr = curr->prev;
+//                    mvwprintw(w, y, x, "%s", curr->instruction);
+//                    clear_line(w);
+//
+//                    // reset len and cursor
+//                    len = strlen(curr->instruction);
+//                    cursor = len + x;
+//                }
+//                break;
+//
+//            case KEY_DOWN:
+//                if (curr->next != NULL) {
+//
+//                    // move forward in history
+//                    curr = curr->next;
+//                    mvwprintw(w, y, x, "%s", curr->instruction);
+//                    clear_line(w);
+//
+//                    // reset len and cursor
+//                    len = strlen(curr->instruction);
+//                    cursor = len + x;
+//                }
+//                break;
+//
+//            default:
+//                if (cursor < MAINWINWIDTH-2 && 
+//                    cursor < MAXINSTRUCTIONSIZE+x &&
+//                    isprint(ch)) {
+//
+//                    // save char
+//                    curr->instruction[len++] = ch;
+//
+//                    // echo
+//                    mvwprintw(w, y, x, "%s", curr->instruction);
+//                    cursor++;
+//                }
+//                break;
+//        }
+//    }
+//    return curr;
+//}
 
 char *hexdump(unsigned char *bytes, int len) {
     char *dump = malloc(len);
@@ -236,4 +357,3 @@ void print_regs(WINDOW *w, int pos, struct user_regs_struct *regsb,
     mvwprintw(w, 17, pos, "%c r14: 0x%016llx", regsb->r14 == regsa->r14 ? ' ' : '*', regsa->r14);
     mvwprintw(w, 18, pos, "%c r15: 0x%016llx", regsb->r15 == regsa->r15 ? ' ' : '*', regsa->r15);
 }
-#endif

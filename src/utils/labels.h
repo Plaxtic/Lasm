@@ -1,3 +1,6 @@
+#ifndef LABELS_H
+#define LABELS_H
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,3 +22,5 @@ int replace_label(struct label*, char*, unsigned long long);
 struct label *addlabel(struct label*, char*, unsigned long long);
 bool is_label(char *);
 void free_labels(struct label *head);
+
+#endif

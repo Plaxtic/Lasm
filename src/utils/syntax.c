@@ -1,6 +1,3 @@
-#ifndef SYNTAX_H
-#define SYNTAX_H
-
 #include "syntax.h"
 
 struct syntax syntax_table[] = {
@@ -33,4 +30,3 @@ int set_syntax(ks_engine *ks, int code) {
 
     return 0;
 }
-#endif

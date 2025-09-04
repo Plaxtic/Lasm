@@ -1,3 +1,6 @@
+#ifndef WRAPPERS_H
+#define WRAPPERS_H
+
 #include "sys/user.h"
 #include "unistd.h"
 #include "sys/wait.h"
@@ -16,3 +19,4 @@ pid_t run_trace(char*);
 uint8_t *assemble(const char *, size_t*, ks_engine*);
 int get_regs(pid_t child, struct user_regs_struct *regs);
 
+#endif

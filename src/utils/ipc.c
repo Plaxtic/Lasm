@@ -1,6 +1,3 @@
-#ifndef SYSCALLS_H
-#define SYSCALLS_H
-
 #include "ipc.h"
 
 long long gettdata(pid_t child, long long addr, char *str, int len) {
@@ -36,4 +33,3 @@ int puttdata(pid_t child, long long addr, uint8_t *str, int len) {
     }
     return written;
 }
-#endif
