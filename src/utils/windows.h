@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <ncurses.h>
 #include <sys/wait.h>
+#include "app.h"
 
 // eflags
 #define CF 0x0001 	
@@ -44,15 +45,14 @@
 
 void init_ncurses();
 WINDOW *create_newwin(int, int, int, int);
-struct history *get_instruction(WINDOW*, struct history*, int, int);
+// struct history *get_instruction(WINDOW*, struct history*, int, int);
+struct history *get_instruction(struct shell_context *ctx, int x);
 void clear_line(WINDOW*);
 void print_stack(WINDOW *, pid_t, unsigned long long, int, int, int, int);
 void print_regs(WINDOW*, int, struct user_regs_struct*,  
         struct user_regs_struct*);
 void print_flags(WINDOW*, int, struct user_regs_struct *, 
         struct user_regs_struct*);
-void update_ui(WINDOW *stack, WINDOW *registers, WINDOW *instructions, 
-        struct user_regs_struct *regsb, struct user_regs_struct *regsa, 
-        pid_t child, int oset, int y);
+void update_ui(struct shell_context *);
 
 #endif

@@ -18,35 +18,33 @@ void init_ncurses() {
     }
 }
 
-void update_ui(WINDOW *stack, WINDOW *registers, WINDOW *instructions, 
-        struct user_regs_struct *regsb, struct user_regs_struct *regsa,
-        pid_t child, int oset, int y){
+void update_ui(struct shell_context *ctx) {
 
     // stack headings
-    mvwprintw(stack, 2, SUBWINWIDTH/7, "rsp");
-    mvwprintw(stack, 1, SUBWINWIDTH/2-3, "STACK");
-    mvwprintw(stack, 2, (SUBWINWIDTH)-SUBWINWIDTH/5, "hexdump");
+    mvwprintw(ctx->win_stack, 2, SUBWINWIDTH/7, "rsp");
+    mvwprintw(ctx->win_stack, 1, SUBWINWIDTH/2-3, "STACK");
+    mvwprintw(ctx->win_stack, 2, (SUBWINWIDTH)-SUBWINWIDTH/5, "hexdump");
 
     // print stack, pointer, and hex dump
-    print_stack(stack, child, regsa->rsp, 2, 20, 19, 15);
-    wrefresh(stack);
+    print_stack(ctx->win_stack, ctx->child, ctx->regs_after.rsp, 2, 20, 19, 15);
+    wrefresh(ctx->win_stack);
 
     // update registers
-    mvwprintw(registers, 1, 11, "REGISTERS");
-    print_regs(registers, 2, regsb, regsa);
-    wrefresh(registers);
+    mvwprintw(ctx->win_registers, 1, 11, "REGISTERS");
+    print_regs(ctx->win_registers, 2, &ctx->regs_before, &ctx->regs_after);
+    wrefresh(ctx->win_registers);
 
     // update flags
-    mvwprintw(registers, 1, SUBWINWIDTH-20, "FLAGS");
-    print_flags(registers, SUBWINWIDTH-33, regsb, regsa);
-    wrefresh(registers);
+    mvwprintw(ctx->win_registers, 1, SUBWINWIDTH-20, "FLAGS");
+    print_flags(ctx->win_registers, SUBWINWIDTH-33, &ctx->regs_before, &ctx->regs_after);
+    wrefresh(ctx->win_registers);
 
     // save register state for comparison
-    get_regs(child, regsb);
+    get_regs(ctx->child, &ctx->regs_before);
 
     // print current address (rip)
-    mvwprintw(instructions, y, oset, "[%#010llx]> ", regsa->rip);
-    wrefresh(instructions);
+    mvwprintw(ctx->win_instructions, ctx->current_line, ctx->addr_offset, "[%#010llx]> ", ctx->regs_after.rip);
+    wrefresh(ctx->win_instructions);
 
 }
 
@@ -66,10 +64,13 @@ void clear_line(WINDOW *w) {
     wrefresh(w);
 }
 
-struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
-    int len = strlen(curr->instruction);  // Start with existing string length
-    int cursor_pos = len;  // Start cursor at end
-    int screen_cursor = x + len;  // Screen position
+struct history *get_instruction(struct shell_context *ctx, int x) { //}WINDOW *w, struct history *curr, int x, int y) {
+    WINDOW *w = ctx->win_instructions;
+    struct history *curr = ctx->history_head;   // Start with existing string length
+    int len = strlen(curr->instruction);        // Start with existing string length
+    int cursor_pos = len;                       // Start cursor at end
+    int screen_cursor = x + len;                // Screen position
+    int y = ctx->current_line;                  // y axis 
 
     int ch;
     while ((ch = mvwgetch(w, y, screen_cursor)) != '\n') {
@@ -77,7 +78,7 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
 
             case BACKSPACE:
                 if (cursor_pos > 0) {
-                    //
+
                     // Shift everything left from cursor position
                     memmove(&curr->instruction[cursor_pos - 1], &curr->instruction[cursor_pos], len - cursor_pos + 1);
 
@@ -151,6 +152,8 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                     screen_cursor = x + len;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
+                    ctx->history_head = curr; // update context
+
                 }
                 break;
 
@@ -162,6 +165,8 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
                     screen_cursor = x + len;
                     mvwprintw(w, y, x, "%s", curr->instruction);
                     clear_line(w);
+                    ctx->history_head = curr; // update context
+
                 }
                 break;
 
