@@ -51,5 +51,8 @@ void print_regs(WINDOW*, int, struct user_regs_struct*,
         struct user_regs_struct*);
 void print_flags(WINDOW*, int, struct user_regs_struct *, 
         struct user_regs_struct*);
+void update_ui(WINDOW *stack, WINDOW *registers, WINDOW *instructions, 
+        struct user_regs_struct *regsb, struct user_regs_struct *regsa, 
+        pid_t child, int oset, int y);
 
 #endif

@@ -1,6 +1,7 @@
 #include "ipc.h"
 #include "windows.h"
 #include "history.h"
+#include "wrappers.h"
 
 void init_ncurses() {
     initscr();
@@ -15,6 +16,38 @@ void init_ncurses() {
             exit(EXIT_SUCCESS);
         }
     }
+}
+
+void update_ui(WINDOW *stack, WINDOW *registers, WINDOW *instructions, 
+        struct user_regs_struct *regsb, struct user_regs_struct *regsa,
+        pid_t child, int oset, int y){
+
+    // stack headings
+    mvwprintw(stack, 2, SUBWINWIDTH/7, "rsp");
+    mvwprintw(stack, 1, SUBWINWIDTH/2-3, "STACK");
+    mvwprintw(stack, 2, (SUBWINWIDTH)-SUBWINWIDTH/5, "hexdump");
+
+    // print stack, pointer, and hex dump
+    print_stack(stack, child, regsa->rsp, 2, 20, 19, 15);
+    wrefresh(stack);
+
+    // update registers
+    mvwprintw(registers, 1, 11, "REGISTERS");
+    print_regs(registers, 2, regsb, regsa);
+    wrefresh(registers);
+
+    // update flags
+    mvwprintw(registers, 1, SUBWINWIDTH-20, "FLAGS");
+    print_flags(registers, SUBWINWIDTH-33, regsb, regsa);
+    wrefresh(registers);
+
+    // save register state for comparison
+    get_regs(child, regsb);
+
+    // print current address (rip)
+    mvwprintw(instructions, y, oset, "[%#010llx]> ", regsa->rip);
+    wrefresh(instructions);
+
 }
 
 WINDOW *create_newwin(int height, int width, int starty, int startx){
@@ -156,104 +189,6 @@ struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
     }
     return curr;
 }
-
-//struct history *get_instruction(WINDOW *w, struct history *curr, int x, int y) {
-//    int len = 0;
-//    int cursor = x;
-//
-//    int ch;
-//    while ((ch = mvwgetch(w, y, cursor)) != '\n') {
-//        switch (ch) {
-//            case BACKSPACE:
-//                if (cursor > x) {
-//
-//                    // delete last char
-//                    curr->instruction[--len] = 0;
-//                    mvwprintw(w, y, x, "%s", curr->instruction);
-//
-//                    // decrement cursor
-//                    cursor--;
-//                    clear_line(w);
-//                }
-//                break;
-//
-//            case CTL_BACKSPACE:
-//                if (curr->instruction[len-1] == ' ') {
-//                    while (cursor > x && curr->instruction[len-1] == ' ') {
-//                        curr->instruction[len--] = 0;
-//                        cursor--;
-//                        mvwprintw(w, y, x, "%s", curr->instruction);
-//                        wmove(w, y, cursor);
-//                        clear_line(w);
-//                    }
-//                }
-//                else {
-//                    while (cursor > x && curr->instruction[len-1] != ' ') {
-//                        curr->instruction[len--] = 0;
-//                        cursor--;
-//                        mvwprintw(w, y, x, "%s", curr->instruction);
-//                        wmove(w, y, cursor);
-//                        clear_line(w);
-//                    }
-//                }
-//                break;
-//
-//            case KEY_RIGHT:
-//                // TODO
-//                break;
-//
-//            case CTL_C:
-//                return NULL;
-//
-//            case KEY_LEFT:
-//                // TODO
-//                break;
-//
-//            case KEY_UP:
-//                if (curr->prev != NULL) {
-//
-//                    // move back in history
-//                    curr = curr->prev;
-//                    mvwprintw(w, y, x, "%s", curr->instruction);
-//                    clear_line(w);
-//
-//                    // reset len and cursor
-//                    len = strlen(curr->instruction);
-//                    cursor = len + x;
-//                }
-//                break;
-//
-//            case KEY_DOWN:
-//                if (curr->next != NULL) {
-//
-//                    // move forward in history
-//                    curr = curr->next;
-//                    mvwprintw(w, y, x, "%s", curr->instruction);
-//                    clear_line(w);
-//
-//                    // reset len and cursor
-//                    len = strlen(curr->instruction);
-//                    cursor = len + x;
-//                }
-//                break;
-//
-//            default:
-//                if (cursor < MAINWINWIDTH-2 && 
-//                    cursor < MAXINSTRUCTIONSIZE+x &&
-//                    isprint(ch)) {
-//
-//                    // save char
-//                    curr->instruction[len++] = ch;
-//
-//                    // echo
-//                    mvwprintw(w, y, x, "%s", curr->instruction);
-//                    cursor++;
-//                }
-//                break;
-//        }
-//    }
-//    return curr;
-//}
 
 char *hexdump(unsigned char *bytes, int len) {
     char *dump = malloc(len);

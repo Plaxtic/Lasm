@@ -169,34 +169,10 @@ int main(int argc, char **argv) {
 
         // get register state 
         get_regs(child, &regsa);
-        long long stack_pointer = regsa.rsp;
         long long inst_pointer = regsa.rip;
 
-        // stack headings
-        mvwprintw(stack, 2, SUBWINWIDTH/7, "rsp");
-        mvwprintw(stack, 1, SUBWINWIDTH/2-3, "STACK");
-        mvwprintw(stack, 2, (SUBWINWIDTH)-SUBWINWIDTH/5, "hexdump");
-
-        // print stack, pointer, and hex dump
-        print_stack(stack, child, stack_pointer, 2, 20, 19, 15);
-        wrefresh(stack);
-
-        // update registers
-        mvwprintw(registers, 1, 11, "REGISTERS");
-        print_regs(registers, 2, &regsb, &regsa);
-        wrefresh(registers);
-
-        // update flags 
-        mvwprintw(registers, 1, SUBWINWIDTH-20, "FLAGS");
-        print_flags(registers, SUBWINWIDTH-33, &regsb, &regsa);
-        wrefresh(registers);
-
-        // save register state for comparison
-        get_regs(child, &regsb);
-
-        // print current address (rip) 
-        mvwprintw(instructions, y, addr_oset, "[%#010llx]> ", inst_pointer);
-        wrefresh(instructions);
+        // display everything
+        update_ui(stack, registers, instructions, &regsb, &regsa, child, addr_oset, y);
 
         // perform loops
         if (loop_begin != 0) {
@@ -207,10 +183,6 @@ int main(int argc, char **argv) {
                 break;
             }
             wait(&status);
-
-/*            mvwprintw(instructions, y, 2, "%#llx : %#llx", 
-                    inst_pointer, loop_begin);    
-*/
 
             if (inst_pointer > loop_begin+1) {
                 loop_begin = 0;
@@ -336,20 +308,10 @@ int main(int argc, char **argv) {
             memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
             strncpy(curr->instruction, tmp->instruction, MAXINSTRUCTIONSIZE);
         }
-
-        /*
-
-           if (strcmp(curr->instruction, curr->prev->instruction))
-           curr = add_to_history(curr);
-           else 
-           memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
-
-*/
-
         curr = add_to_history(curr);
     }
 
-    free_history(curr); // or use your main history head pointer, e.g., the initial 'curr'
+    free_history(curr);
     free_labels(labels);
 
     if (outfd) fclose(outfd);
