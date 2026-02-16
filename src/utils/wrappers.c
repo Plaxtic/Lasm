@@ -8,12 +8,12 @@ void print_usage(char *argv0) {
     fprintf(stderr, USAGE, argv0);
 }
 
-pid_t run_trace(char *filename) {
+pid_t run_trace(char *filename, char *stack_args) {
     pid_t child = fork();
 
     if (!child) {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-        execl(filename, filename, NULL);
+        execl(filename, filename, stack_args, NULL);
         exit(0);
     }
     return child;

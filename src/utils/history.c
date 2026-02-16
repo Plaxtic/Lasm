@@ -48,19 +48,6 @@ struct history *find_by_addr(unsigned long long addr, struct history *head) {
     return NULL; // Not found
 }
 
-// struct history *find_head(struct history *curr) {
-//     if (curr->next == NULL)
-//         return curr;
-// 
-//     return find_head(curr->next);
-// }
-
-// struct history *find_by_addr(unsigned long long addr, struct history *head) {
-//     if (head == NULL || head->addr == addr)
-//         return head;
-// 
-//     return find_by_addr(addr, head->prev);
-// }
 
 FILE *get_history_file() {
 

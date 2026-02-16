@@ -27,13 +27,8 @@ int main(int argc, char **argv) {
         // get register state 
         get_regs(ctx.child, &ctx.regs_after);
 
-        // display everything
         update_ui(&ctx);
-
-        // perform loops
         handle_loops(&ctx, &loop_begin);
-
-        // get instruction
         ctx.history_head = get_instruction(&ctx, 42);
         if (ctx.history_head == NULL) 
             break;
@@ -41,12 +36,10 @@ int main(int argc, char **argv) {
         // update instruction pointer
         ctx.history_head->addr = ctx.regs_after.rip;
 
-        // Process the instruction
         return_value = process_instruction(&ctx);
         if (return_value != 0)
             break;
 
-        // Manage history
         manage_history(&ctx);
     }
     shell_cleanup(&ctx);

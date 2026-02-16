@@ -12,11 +12,12 @@
 \n\
 \t-o <outfile>\n\
 \t-s <asm syntax>\n\
-\t-b <bits>\n\n"
+\t-b <bits>\n\
+\t-a \"'arg1' 'arg2'...\"\n\n"
 
 void print_usage(char*);
-pid_t run_trace(char*);
-uint8_t *assemble(const char *, size_t*, ks_engine*);
-int get_regs(pid_t child, struct user_regs_struct *regs);
+pid_t run_trace(char*, char*);
+uint8_t *assemble(const char*, size_t*, ks_engine*);
+int get_regs(pid_t, struct user_regs_struct*);
 
 #endif

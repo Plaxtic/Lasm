@@ -15,7 +15,7 @@ bool is_buggy_char(const char *instruction) {
     return false;
 }
 
-int handle_loops(struct shell_context *ctx, unsigned long long *loop_begin) {
+int handle_loops(struct shell_context *ctx,  unsigned long long *loop_begin) {
     long long inst_pointer = ctx->regs_after.rip;
     struct history *curr = ctx->history_head;
 
@@ -27,35 +27,33 @@ int handle_loops(struct shell_context *ctx, unsigned long long *loop_begin) {
         }
         wait(&ctx->child_status);
 
-        if (inst_pointer > *loop_begin + 1)
+        if (inst_pointer > *loop_begin+1) {
             *loop_begin = 0;
-
+        }
         return 1;
     }
-
     if (ctx->current_line > 3 && inst_pointer < curr->prev->addr) {
         *loop_begin = inst_pointer;
         return 1;
     }
-
     return 0;
 }
+
 
 int process_instruction(struct shell_context *ctx) {
     struct history *curr = ctx->history_head;
 
     // skip empty input
-    if (!curr->instruction[0]) 
-        return 0;
+    if (!curr->instruction[0]) return 0;
 
     // handle quit command
-    if (strcmp(curr->instruction, "q") == 0) 
-        return 1;
+    if (strcmp(curr->instruction, "q") == 0) return 1;
 
     // handle step command
     if (strcmp(curr->instruction, "s") == 0 ||
-        strncmp(curr->instruction, "s ", 2) == 0)
+        strncmp(curr->instruction, "s ", 2) == 0) {
         return handle_step_command(ctx);
+    }
 
     // handle assembly instructions and labels
     return handle_assembly(ctx);
@@ -72,8 +70,7 @@ int handle_step_command(struct shell_context *ctx) {
 
     // get number of steps
     nsteps = strtoul(&curr->instruction[i], NULL, 10);
-    if (nsteps == 0) 
-        nsteps = 1;
+    if (nsteps == 0) nsteps = 1;
 
     // execute steps
     for (i = 0; i < nsteps; ++i) {
@@ -83,7 +80,6 @@ int handle_step_command(struct shell_context *ctx) {
         }
         wait(&ctx->child_status);
     }
-
     wmove(ctx->win_instructions, ctx->current_line, 40);
     clear_line(ctx->win_instructions);
     return 0;
@@ -98,30 +94,29 @@ int handle_assembly(struct shell_context *ctx) {
     // try to assemble
     size_t nbytes = 0;
     uint8_t *bytes = NULL;
-    if (!is_buggy_char(curr->instruction))
+    if (!is_buggy_char(curr->instruction)) {
         bytes = assemble(curr->instruction, &nbytes, ctx->ks);
-
-    // try to execute
-    if (bytes != NULL && nbytes > 0) {
-        int result = execute_assembly(ctx, bytes, nbytes);
-        free(bytes);
-        return result;
     }
 
-    handle_label_creation(ctx);
-    return 0;
+    // try to execute
+    if (nbytes > 0 && bytes != NULL) {
+        return execute_assembly(ctx, bytes, nbytes);
+    } else {
+        return handle_label_creation(ctx);
+    }
 }
 
 
 int execute_assembly(struct shell_context *ctx, uint8_t *bytes, size_t nbytes) {
-    struct history *curr = ctx->history_head;
 
     // cover "Invalid" with spaces
+    struct history *curr = ctx->history_head;
     mvwprintw(ctx->win_instructions, ctx->current_line, 2, "           ");
 
     // print bytecode in hex
-    for (size_t i = 0; i < nbytes; i++)
+    for (int i = 0; i < nbytes; i++) {
         mvwprintw(ctx->win_instructions, ctx->current_line, 2 + (i * 2), "%02x", bytes[i]);
+    }
 
     // move to next line
     ctx->current_line++;
@@ -142,15 +137,16 @@ int execute_assembly(struct shell_context *ctx, uint8_t *bytes, size_t nbytes) {
     wait(&ctx->child_status);
 
     // save to file
-    if (ctx->outfd != NULL)
+    if (ctx->outfd != NULL) {
         fprintf(ctx->outfd, "\t%s\n", curr->instruction);
+    }
 
     fprintf(ctx->log, "%llu:%s\n", curr->addr, curr->instruction);
 
     return 0;
 }
 
-void handle_label_creation(struct shell_context *ctx) {
+int handle_label_creation(struct shell_context *ctx) {
     struct history *curr = ctx->history_head;
 
     wmove(ctx->win_instructions, ctx->current_line, 2);
@@ -169,6 +165,7 @@ void handle_label_creation(struct shell_context *ctx) {
         mvwprintw(ctx->win_instructions, ctx->current_line, 2, "Invalid");
         clear_line(ctx->win_instructions);
     }
+    return 0;
 }
 
 void manage_history(struct shell_context *ctx) {
@@ -179,7 +176,6 @@ void manage_history(struct shell_context *ctx) {
         curr = find_head(curr);
         memset(curr->instruction, 0, MAXINSTRUCTIONSIZE);
         strncpy(curr->instruction, tmp->instruction, MAXINSTRUCTIONSIZE);
-        curr->instruction[MAXINSTRUCTIONSIZE - 1] = '\0';
     }
     ctx->history_head = add_to_history(curr);
 }

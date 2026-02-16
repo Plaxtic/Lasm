@@ -4,6 +4,8 @@
 #include "windows.h"
 #include "ipc.h"
 
+#define MAXSTACKARGSLEN 20
+
 void shell_cleanup(struct shell_context *ctx) {
 
     // cleanup lists
@@ -11,10 +13,10 @@ void shell_cleanup(struct shell_context *ctx) {
     free_labels(ctx->labels_head);
 
     // close
-    if (ctx->outfd) 
-        fclose(ctx->outfd);
     ks_close(ctx->ks);
     fclose(ctx->log);
+    if (ctx->outfd) 
+        fclose(ctx->outfd);
 
     // shut windows
     delwin(ctx->win_instructions);
@@ -25,10 +27,10 @@ void shell_cleanup(struct shell_context *ctx) {
 
 int shell_init(struct shell_context *ctx, int argc, char **argv) {
 
-    // zero out the context 
+    // zero out context 
     memset(ctx, 0, sizeof(struct shell_context));
 
-    // initial defaults
+    // defaults
     ctx->addr_offset = 28;
     ctx->current_line = 2;
 
@@ -37,15 +39,25 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
     int syntax = -1;
     bool no_prelude = false;
     char filename[22] = NULFILE;
+    char *stack_args = NULL;
 
     // get options
     int op;
-    while ((op = getopt(argc, argv, "b:s:o:hp")) != -1) {
+    while ((op = getopt(argc, argv, "a:b:s:o:hp")) != -1) {
         switch (op) {
 
             // suppress prelude
             case 'p': 
                 no_prelude = true;
+                break;
+
+            // pass argumens to stack
+            case 'a':
+                if (strlen(optarg) > MAXSTACKARGSLEN) {
+                    fprintf(stderr, "too many arguments\n");
+                    return -1;
+                }
+                stack_args = optarg;
                 break;
 
             // output file
@@ -115,11 +127,10 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
     }
 
     // basic elf prelude 
-    if (ctx->outfd != NULL && !no_prelude)
-        fputs(ASMPRELUDE, ctx->outfd);
+    if (ctx->outfd != NULL && !no_prelude) fputs(ASMPRELUDE, ctx->outfd);
 
     // run program in child process and trace with parent
-    ctx->child = run_trace(filename);
+    ctx->child = run_trace(filename, stack_args);
     if (ctx->child == -1) {
         perror("run trace");
         return -1;
@@ -167,7 +178,6 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
         shell_cleanup(ctx);
         return -1;
     }
-
     ctx->regs_after = ctx->regs_before;
 
     return 0;
