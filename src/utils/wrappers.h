@@ -10,9 +10,10 @@
 #define ARCH KS_ARCH_X86
 #define USAGE "Usage: %s\n\
 \n\
-\t-o <outfile>\n\
+\t-o <asm outfile>\n\
+\t-b <raw binary outfile>\n\
 \t-s <asm syntax>\n\
-\t-b <bits>\n\
+\t-i <bits>\n\
 \t-a \"'arg1' 'arg2'...\"\n\n"
 
 void print_usage(char*);

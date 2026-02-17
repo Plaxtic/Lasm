@@ -7,12 +7,16 @@
 #include "history.h"
 #include "labels.h"
 
+#define MAXBYTECODESIZ 16
+
 struct shell_context {
     pid_t child;
     ks_engine *ks;
     FILE *log;
     FILE *outfd;
+    FILE *outbin;
     struct history *history_head;
+    struct assembled_bytes *bytecode_head;
     struct label *labels_head;
     struct user_regs_struct regs_before;
     struct user_regs_struct regs_after;
@@ -25,12 +29,9 @@ struct shell_context {
     int should_quit;
 };
 
-// Initialization & Cleanup
+// initialization + cleanup
 int shell_init(struct shell_context *ctx, int argc, char **argv);
 void shell_cleanup(struct shell_context *ctx);
 
-// Main Loop Functions
-// void ui_update_all(struct app_context *ctx);
-// int process_user_input(struct app_context *ctx, int *current_line);
 
 #endif

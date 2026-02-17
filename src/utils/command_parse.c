@@ -3,6 +3,7 @@
 #include "command_parse.h"
 #include "ipc.h"
 #include "wrappers.h"
+#include "bytecode.h"
 
 bool is_buggy_char(const char *instruction) {
     if (!instruction || !instruction[0]) 
@@ -57,10 +58,14 @@ int process_instruction(struct shell_context *ctx) {
         strncmp(curr->instruction, "s ", 2) == 0)
         return handle_step_command(ctx);
 
+    if (strcmp(curr->instruction, "cb") == 0) {
+        // TODO - will copy bytes to clipboard
+        return 0;
+    }
+
     // handle assembly instructions and labels
     return handle_assembly(ctx);
 }
-
 
 int handle_step_command(struct shell_context *ctx) {
     struct history *curr = ctx->history_head;
@@ -112,7 +117,6 @@ int handle_assembly(struct shell_context *ctx) {
     return 0;
 }
 
-
 int execute_assembly(struct shell_context *ctx, uint8_t *bytes, size_t nbytes) {
     struct history *curr = ctx->history_head;
 
@@ -144,8 +148,17 @@ int execute_assembly(struct shell_context *ctx, uint8_t *bytes, size_t nbytes) {
     // save to file
     if (ctx->outfd != NULL)
         fprintf(ctx->outfd, "\t%s\n", curr->instruction);
+    if (ctx->outbin != NULL)
+        fwrite(bytes, 1, nbytes, ctx->outbin);
+
 
     fprintf(ctx->log, "%llu:%s\n", curr->addr, curr->instruction);
+
+    // add bytecode
+    if (add_bytecode(ctx, bytes, nbytes) < 0) {
+        perror("add_bytecode fail");
+        return -1;
+    }
 
     return 0;
 }

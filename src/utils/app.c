@@ -17,6 +17,8 @@ void shell_cleanup(struct shell_context *ctx) {
     fclose(ctx->log);
     if (ctx->outfd) 
         fclose(ctx->outfd);
+    if (ctx->outbin) 
+        fclose(ctx->outbin);
 
     // shut windows
     delwin(ctx->win_instructions);
@@ -43,7 +45,7 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
 
     // get options
     int op;
-    while ((op = getopt(argc, argv, "a:b:s:o:hp")) != -1) {
+    while ((op = getopt(argc, argv, "a:b:s:o:i:hp")) != -1) {
         switch (op) {
 
             // suppress prelude
@@ -60,11 +62,21 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
                 stack_args = optarg;
                 break;
 
-            // output file
+            // output asm
             case 'o':
                 ctx->outfd = fopen(optarg, "w");
 
                 if (ctx->outfd == NULL) {
+                    perror("output");
+                    return -1;
+                }
+                break;
+
+            // output binary
+            case 'b':
+                ctx->outbin = fopen(optarg, "w");
+
+                if (ctx->outbin == NULL) {
                     perror("output");
                     return -1;
                 }
@@ -82,7 +94,7 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
                 break;
 
             // choose bits
-            case 'b':
+            case 'i':
                 if (strcmp(optarg, "32") == 0) {
                     printf("\n\t32 bit is not ready!!\n");
                     printf("\n\t(use anyway? [y/N])\n");
@@ -149,7 +161,6 @@ int shell_init(struct shell_context *ctx, int argc, char **argv) {
         perror("Failed to load history file");
         return -1;
     }
-
 
     ctx->history_head = load_history(ctx->log);
     if (ctx->history_head == NULL) {
